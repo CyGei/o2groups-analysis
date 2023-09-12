@@ -56,3 +56,6 @@ analysis/quarto/perfomance_files/
 # Ignore data folder from simulation & manual
 analysis/simulation/data/
 analysis/manual/data/
+
+#ingnore any .svg files
+*.svg

@@ -1,16 +1,14 @@
 library(tidyverse)
 library(here)
-library(data.table)
 
 # Helpers -----------------------------------------------------------------
 source(here("analysis/simulation/script/plot_helpers.R"))
 
 # Data --------------------------------------------------------------------
 scenarios_df <-
-  fread(here("analysis/simulation/data/model", "scenarios_df.csv"))
+  readRDS(here("analysis/simulation/data/model", "scenarios_df.rds"))
 # model_df is the most granular data on simulation level
-model_df <-
-  fread(here("analysis/simulation/data/model", "model_df.csv"))
+model_df <- readRDS(here("analysis/simulation/data/model", "model_df.rds"))
 #outcomes_df summarises across all simulations
 outcomes_df <-
   readRDS(here("analysis/simulation/data/model", "outcomes_df.rds"))
