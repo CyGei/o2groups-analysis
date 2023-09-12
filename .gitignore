@@ -47,3 +47,12 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+.Rproj.user
+
+# Ignore specific Quarto output folders
+analysis/quarto/images/
+analysis/quarto/perfomance_files/
+
+# Ignore data folder from simulation & manual
+analysis/simulation/data/
+analysis/manual/data/

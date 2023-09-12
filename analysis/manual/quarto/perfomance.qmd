@@ -1,0 +1,570 @@
+---
+title: "o2groups: simulation study"
+format: html
+editor: visual
+knitr:
+  opts_knit:
+    root.dir: "C:/Users/cygei/Documents/PROJECTS_LOCAL/o2groups"
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(tidyverse)
+library(o2groups)
+```
+
+## Introduction
+
+The aim of this document is to assess our ability to retrieve the `delta` estimates under different scenarios.
+
+`Delta` refers to the assortativity coefficient. In the below we standardised `delta` such that:
+
+-   -1-0 = dissortative
+
+-   0 = neutral
+
+-   0-1 = assortative
+
+## Scenarios
+
+The Table below presents the different scenarios considered.
+
+````{=html}
+<!---
+{r, child="C:/Users/cg1521/Documents/PROJECTS_LOCAL/o2groups/analysis/data/scenarios.html", eval=TRUE}
+```
+--->
+````
+
+![](images/scenarios-02.png)
+
+## Assessment
+
+Below is the output of our simulations studies.
+
+For each scenario and for each peak coefficient value, 100 simulations are run. We record the `delta` estimates (and 95% binomial CI) for each group. `Delta` is estimated in the early phase of the epidemic, it records the number of within-group transmissions and is thus sensitive to the proportions of susceptibles. The peak coefficient (`peak_coeff`), refers to a coefficient \]0;1\] used to calculate a date in reference to the epidemic peak. This coefficient is multiplied with the date of the peak to get a new date that is a fraction of the original peak date.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+scenarios <- readRDS(here::here("analysis/data/scenarios.rds")) %>% extract_scenario()
+simulations <- readRDS(here::here("analysis/data/simulations.rds"))
+results <- readRDS(here::here("analysis/data/results.rds"))
+#https://rpubs.com/rana2hin/raincloud
+# Functions -------------------------------------------------------------------------------------
+standarise_delta <- function(delta) {
+  delta <- as.numeric(delta)
+  d <- ifelse(is.finite(delta),
+    (delta - 1) / (delta + 1),
+    1.0
+  )
+  return(d)
+}
+
+normalise <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Define the polar theme
+polar_theme <- theme(
+  text = element_text(size = 12),
+  axis.text.x = element_text(color = "black"),
+  axis.line.y = element_blank(),
+  panel.grid.major.x = element_line(color = "gray", size = 0.1),
+  panel.grid.major.y = element_line(color = "black", size = 0.1, linetype = "solid"),
+  panel.grid.minor = element_blank(),
+  panel.border = element_blank(),
+  legend.background = element_rect(fill = "white", color = "black"),
+  axis.text.y = element_blank(),
+  axis.ticks.y = element_blank()
+)
+gg_y_scale <- list(scale_y_continuous(breaks = seq(-1, 1, 0.1), limits = c(-1, 1), expand = c(0.01, 0.01)))
+
+
+# Data ------------------------------------------------------------------------------------------
+# From now all values will be standardised
+results <- merge(results,
+  scenarios,
+  by = c("scenario", "group")
+) %>%
+  summarise(
+    simulation = as.factor(simulation),
+    scenario = as.factor(scenario),
+    peak_coeff = as.factor(peak_coeff),
+    group = as.factor(group),
+    across(
+      .cols = c("delta", "est", "lower_ci", "upper_ci"),
+      .names = "{.col}",
+      .fns = standarise_delta
+    ),
+    bias = delta - est,
+    is_within_ci = ifelse(delta >= lower_ci &
+      delta <= upper_ci,
+    TRUE,
+    FALSE
+    ),
+    delta_outside_0 = ifelse(delta != 0,
+      TRUE,
+      FALSE
+    ),
+    est_outisde_0 = ifelse(lower_ci > 0 | upper_ci < 0,
+      TRUE,
+      FALSE
+    )
+  ) %>% 
+  arrange(simulation, scenario, peak_coeff, group)
+head(results)
+```
+
+## 
+
+### Precision of the `delta` estimate
+
+```{r}
+#| message: false
+#| warning: false
+# means
+m1 <- results %>%
+  drop_na(est) %>%
+  group_by(peak_coeff, scenario, group) %>%
+  summarise(across(
+    .cols = c("delta", "est", "lower_ci", "upper_ci"),
+    .fns = ~ mean(.),
+    .names = "mean_{.col}"
+  ))
+
+# mean + 95% quantiles
+m2 <- results %>%
+  drop_na(est) %>%
+  group_by(peak_coeff, scenario, group) %>%
+  summarise(
+    delta = unique(delta),
+    mean_est = mean(est),
+    lower_quantile = quantile(est, 0.025),
+    upper_quantile = quantile(est, 0.975)
+  )
+
+# mean + 1 SD interval
+m3 <- results %>%
+  drop_na(est) %>%
+  group_by(peak_coeff, scenario, group) %>%
+  summarise(
+    delta = unique(delta),
+    mean_est = mean(est),
+    sd_est = sd(est)
+  ) %>%
+  mutate(
+    ymin = mean_est - sd_est,
+    ymax = mean_est + sd_est)
+```
+
+-   **Estimation Accuracy:** Accuracy measures how well the estimates (`mean_est`) align with the true `delta` values. If the mean_est is close to the true value, it indicates that the estimation method is accurate.
+
+-   **Estimation Precision:** Precision refers to the spread or variability of the estimates. In this case, it is related to how wide or narrow the mean 95% confidence intervals (`mean_lower_ci` and `mean_upper_ci`) or the 95% quantiles (`lower_quantile`, `upper_quantile`) or the 1 SD interval (`ymin`, `ymax`) are. A smaller confidence interval indicates higher precision, which means the estimated values are more tightly clustered around the mean estimate.
+
+Plots are shown in the same order as above.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+m1 %>%
+  ggplot(aes(x = group, y = mean_est, col = peak_coeff)) +
+  facet_wrap(~scenario, scales = "free_x") +
+
+  # estimate
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(
+    aes(ymin = mean_lower_ci, ymax = mean_upper_ci),
+    width = 0.2,
+    position = position_dodge(0.9)
+  ) +
+
+  # true delta
+  geom_segment(
+    aes(
+      y = mean_delta,
+      xend = as.integer(as.factor(group)) + 0.5,
+      yend = mean_delta
+    ),
+    color = "black",
+    position = position_dodge(0.9),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    aes(
+      y = mean_delta,
+      xend = as.integer(as.factor(group)) - 0.5,
+      yend = mean_delta
+    ),
+    color = "black",
+    position = position_dodge(0.9),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+
+  # hline at 0
+  geom_hline(aes(yintercept = 0), lty = "dotted") +
+  labs(
+    x = "Scenario", y = "Estimate",
+    title = "Mean estimate, mean 95% lower and mean 95% upper CI",
+    subtitle = "black lines refer to the true delta estimate"
+  ) +
+  theme_bw()
+
+
+
+m2 %>%
+  ggplot(aes(x = group, y = mean_est, col = peak_coeff)) +
+  facet_wrap(~scenario, scales = "free_x") +
+
+  # estimate
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(
+    aes(ymin = lower_quantile, ymax = upper_quantile),
+    width = 0.2,
+    position = position_dodge(0.9)
+  ) +
+
+  # true delta
+  geom_segment(
+    aes(
+      y = delta,
+      xend = as.integer(as.factor(group)) + 0.5,
+      yend = delta
+    ),
+    color = "black",
+    position = position_dodge(0.9),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    aes(
+      y = delta,
+      xend = as.integer(as.factor(group)) - 0.5,
+      yend = delta
+    ),
+    color = "black",
+    position = position_dodge(0.9),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+
+  # hline at 0
+  geom_hline(aes(yintercept = 0), lty = "dotted") +
+  labs(
+    x = "Scenario", y = "Estimate",
+    title = "Mean estimate & 95% quantile interval of the estimate",
+    subtitle = "black lines refer to the true delta estimate"
+  ) +
+  theme_bw()
+
+
+
+m3 %>%
+  ggplot(aes(x = group, y = mean_est, color = peak_coeff)) +
+  facet_wrap(~scenario, scales = "free_x") +
+  #estimate
+  geom_errorbar(
+    aes(
+      ymin = ymin,
+      ymax = ymax,
+      color = peak_coeff
+    ),
+    width = 0.2,
+    position = position_dodge(0.9)
+  ) +
+  geom_point(position = position_dodge(0.9))+
+   # true delta
+  geom_segment(
+    aes(
+      y = delta,
+      xend = as.integer(as.factor(group)) + 0.5,
+      yend = delta
+    ),
+    color = "black",
+    position = position_dodge(0.9),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    aes(
+      y = delta,
+      xend = as.integer(as.factor(group)) - 0.5,
+      yend = delta
+    ),
+    color = "black",
+    position = position_dodge(0.9),
+    alpha = 0.7,
+    show.legend = FALSE
+  ) +
+
+  # hline at 0
+  geom_hline(aes(yintercept = 0), lty = "dotted") +
+  labs(
+    x = "group", y = "Estimate",
+    title = "Mean estimate & one standard deviation interval of the estimate",
+    subtitle = "black lines refer to the true delta estimate"
+  ) +
+  theme_bw()
+```
+
+### Bias
+
+• **Bias**,defined as difference between the delta estimate and the true delta value. Bias should be as close zero.
+
+```{r}
+#| message: false
+#| warning: false
+
+m4 <- results %>%
+  group_by(scenario, peak_coeff) %>%
+  summarise(
+    mean_bias = mean(bias),
+    sd_bias = sd(bias)
+  ) %>% 
+  mutate(xmin = mean_bias - sd_bias,
+         xmax = mean_bias + sd_bias,
+         ypos = 30 + (row_number() - 1) * 5)
+```
+
+We plot the results below.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+# Histogram of bias
+ggplot() +
+  facet_wrap(~scenario, scales = "free_y") +
+  geom_histogram(
+    data = results,
+    aes(x = bias, fill = peak_coeff),
+    col = "grey",
+    binwidth = 0.05,
+    position = "identity", 
+    alpha = 0.5
+  ) +
+  geom_errorbarh(
+    data = m4,
+    aes(
+      xmin = xmin,
+      xmax = xmax,
+      y = ypos,
+      color = peak_coeff
+    )
+  )+
+  geom_point(
+    data = m4,
+    aes(
+      x = mean_bias,
+      y = ypos,
+      color = peak_coeff
+    )
+  )+
+  geom_vline(xintercept = 0, lty = "dotted") +
+  theme_bw()+
+  labs(
+    title = "Histogram of Bias by Scenario",
+    subtitle = "Point represent the mean bias. Error bars represent the one standard deviation interval.",
+    x = "Scaled Bias",
+    y = "Frequency",
+    caption ="Bias is the difference between the delta estimate and the true delta value. 
+    Bias should be closest to 0 for a perfect model."
+    )
+
+# violin plot of bias distribution by scenario
+results %>%
+  ggplot(
+    aes(
+      x = group,
+      y = bias,
+      group = interaction(scenario, group, peak_coeff)
+    )
+  ) +
+  facet_wrap(~scenario, scales = "free") +
+  geom_violin() +
+  ggforce::geom_sina(aes(col = peak_coeff), alpha = 0.4) +
+  geom_hline(yintercept = 0, lty = "dotted") +
+  theme_bw() +
+  labs(
+    title = "Distribution of Bias by Scenario",
+    x = "Scaled Bias",
+    y = "Frequency",
+    caption = "Bias is the difference between the delta estimate and the true delta value. 
+    Bias should be closest to 0 for a perfect model."
+  )
+```
+
+### Coverage
+
+• **Coverage** probability, defined as the proportion of simulations where a given confidence interval of the estimated delta contained the true delta value. The 95% coverage probability for a well-calibrated model should be 95%, i.e. the true value will be contained in the 95% CI in 95% of the simulations (analogous criterion is applicable for 50% coverage probability).
+
+-\> How many times does the true delta falls within the 95% CI?
+
+```{r}
+#| message: false
+#| warning: false
+m5 <- results %>%
+  group_by(peak_coeff, scenario, group) %>%
+  summarise(
+    est = binom.test(x = sum(is_within_ci), n = n())$est[[1]],
+    lower = binom.test(x = sum(is_within_ci), n = n())$conf.int[[1]],
+    upper = binom.test(x = sum(is_within_ci), n = n())$conf.int[[2]]
+  )
+
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+m5 %>% 
+  ggplot(aes(
+    x = group, y = est,
+    color = peak_coeff
+  )) +
+  facet_wrap(~scenario, scales = "free") +
+  geom_point(
+    position = position_dodge(width = 0.5),
+    size = 3
+  ) +
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    position = position_dodge(width = 0.5),
+    width = 0.2
+  ) +
+  geom_hline(yintercept = 0.95) +
+  labs(x = "Group", y = "Proportion within CI",
+  title = "Coverage Rate by Scenario", subtitle = "Point refers to frequency estimate. Error bar refers to 95% binomial CI.",
+  caption = "Coverage probability is defined as the proportion of simulations where a given confidence interval of the delta estimate contained the true delta value.") +
+  theme_bw()
+```
+
+### Significance
+
+Significance is defined as the proportion of simulations where the delta estimate detects significant assortativity or dissortativity (i.e. the 95% CI does not contain 0).
+
+```{r}
+#| message: false
+#| warning: false
+m6 <- results %>%
+  group_by(peak_coeff, scenario, group) %>%
+  summarise(
+    est = binom.test(x = sum(est_outisde_0), n = n())$est[[1]],
+    lower = binom.test(x = sum(est_outisde_0), n = n())$conf.int[[1]],
+    upper = binom.test(x = sum(est_outisde_0), n = n())$conf.int[[2]]
+  )
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+m6 %>% 
+  ggplot(aes(
+    x = group, y = est,
+    color = peak_coeff,
+    group = interaction(scenario, group, peak_coeff)
+  )) +
+  facet_wrap(~scenario, scales = "free_x") +
+  geom_point(
+    size = 3,
+    position = position_dodge(width = 0.9)
+  ) +
+  geom_errorbar(
+    aes(
+      ymin = lower,
+      ymax = upper
+    ),
+    position = position_dodge(width = 0.9),
+    width = 0.2
+  ) +
+  labs(x = "Group", y = "Proportion",
+  title = "Proportion of simulations where significance is detected",
+  subtitle = "Point refers to the mean proportion. Error bar refers to 95% binomial CI.",
+  caption = "Significance is defined as the proportion of simulations where the delta estimate 
+  detects significant assortativity or dissortativity (i.e. the 95% CI does not contain 0).") +
+  theme_bw()
+
+```
+
+### Calculating sensitivity and specificity
+
+A "*positive*" here refers to the model detecting significant assortativity or dissortativity (i.e. the 95% CI does not contain 0).
+
+```{r}
+#| message: false
+#| warning: false
+out <- results %>%
+  select(scenario, peak_coeff, delta_outside_0, est_outisde_0) %>%
+  group_by(scenario, peak_coeff) %>%
+  summarise(
+    true_positive = sum(delta_outside_0 == TRUE &
+      est_outisde_0 == TRUE),
+    true_negative = sum(delta_outside_0 == FALSE &
+      est_outisde_0 == FALSE),
+    false_positive = sum(delta_outside_0 == FALSE &
+      est_outisde_0 == TRUE),
+    TPR = true_positive / sum(delta_outside_0 == TRUE),
+    FPR = false_positive / sum(delta_outside_0 == TRUE),
+    TNR = true_negative / sum(delta_outside_0 == FALSE),
+    PPV = true_positive / sum(est_outisde_0 == TRUE),
+    NPV = true_negative / sum(est_outisde_0 == FALSE)
+  ) %>%
+  select(-starts_with(c("true_", "false_")))
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#RoC curve
+out %>%
+  ggplot(aes(x = FPR, y = TPR, col = peak_coeff)) +
+  facet_wrap(~scenario) +
+  geom_point(size = 4) +
+  scale_x_continuous(limits = c(0, 1)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  coord_cartesian()+
+  labs(x = "False Positive Rate", y = "True Positive Rate",
+  title = "ROC") +
+  theme_bw()
+
+# Normalise the values
+# out_normalised <- as.data.frame(lapply(out[, -1], normalise))
+# out_normalised$peak_coeff <- out$peak_coeff
+
+out %>% #out_normalised
+  pivot_longer(cols = -c(peak_coeff, scenario), names_to = "metric") %>%
+  ggplot(aes(x = metric, y = value, group = peak_coeff)) +
+  facet_wrap(~scenario) +
+  geom_line(aes(color = peak_coeff, )) +
+  geom_point(aes(color = peak_coeff), show.legend = FALSE) +
+  geom_vline(
+    xintercept = c(1:4),
+    colour = "gray",
+    lty = "solid"
+  ) +
+  scale_y_continuous(breaks = seq(0, 1, 0.1), labels = scales::percent) +
+  geom_text(
+    aes(
+      label = scales::percent(value, accuracy = 1),
+      color = peak_coeff
+    ),
+    position = position_nudge(y = 0.03),
+    size = 3.5
+  ) +
+  theme_void() +
+  coord_polar(clip = "off") +
+  polar_theme +
+  labs(title = "Radar Plot") +
+  theme(legend.position = "bottom")
+```
