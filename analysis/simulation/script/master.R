@@ -10,7 +10,7 @@ purrr::walk(subdirectories, ~ dir.create(here::here("analysis/simulation/data", 
 # 0. Parameters --------------------------------------------------------------------------------------------
 n_scenarios <- 10000
 n_simulations <- 100
-peak_coeffs <- seq(0.7, 1, 0.1)
+peak_coeffs <- seq(0.7, 1.6, 0.1)
 
 # Seed for scenarios
 log_files <- list.files(here("analysis/simulation/data"), pattern = "log_", recursive = TRUE)

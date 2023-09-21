@@ -41,8 +41,8 @@ remove_object <- function(list, object_name) {
 # Data ----------------------------------------------------------------------
 scenarios <- read_files(here("analysis/simulation/data", "scenarios"))
 results <- read_files(here("analysis/simulation/data", "results"))
-test_n_groups(scenarios, results, n_sample = 10)
-test_skim_output(scenarios, results, n_sample = 10)
+test_n_groups(scenarios, results, n_sample = 100)
+test_skim_output(scenarios, results, n_sample = 100)
 
 scenarios_df <-
   map(.x = scenarios,
@@ -108,11 +108,12 @@ outcomes_df <- model_df %>%
   group_by(scenario, peak_coeff, name) %>%
   #filter(significant_delta == TRUE) %>% #TODO: MENTION HOW TO PLOT/TREAT SIGNIFICANCE WITH DELTA = 0
   summarise(
-    coverage = sum(is_within_ci) / n(),
-    bias = mean(bias),
+    coverage = sum(is_within_ci, na.rm = TRUE) / n(),
+    bias = mean(bias, na.rm = TRUE),
     #significance should always be 1
-    significance = sum(significant_est == significant_delta) / n(),
-    trials = mean(trials, na.rm = TRUE)
+    significance = sum(significant_est == significant_delta, na.rm = TRUE) / n(),
+    trials = mean(trials, na.rm = TRUE),
+    successes = mean(successes, na.rm = TRUE)
   ) %>%
   ungroup() %>%
   left_join(scenarios_df, by = c("scenario", "name"))

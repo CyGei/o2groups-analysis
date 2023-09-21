@@ -8,7 +8,8 @@ source(here("analysis/simulation/script/plot_helpers.R"))
 scenarios_df <-
   readRDS(here("analysis/simulation/data/model", "scenarios_df.rds"))
 # model_df is the most granular data on simulation level
-model_df <- readRDS(here("analysis/simulation/data/model", "model_df.rds"))
+model_df <-
+  readRDS(here("analysis/simulation/data/model", "model_df.rds"))
 # outcomes_df summarises across all simulations
 outcomes_df <-
   readRDS(here("analysis/simulation/data/model", "outcomes_df.rds"))
@@ -24,7 +25,8 @@ predictors <-
     "GT_sd",
     "INCUB_mean",
     "INCUB_sd",
-    "trials"
+    "trials",
+    "successes"
   )
 metrics <- c("coverage", "bias", "significance")
 
@@ -34,27 +36,21 @@ metrics <- c("coverage", "bias", "significance")
 # When delta is 0 we do 1 - significance
 outcomes_long <- outcomes_df %>%
   mutate(significance = ifelse(delta == 0, 1 - significance, significance)) %>%
-  pivot_longer(
-    cols = all_of(predictors),
-    names_to = "predictor_name",
-    values_to = "predictor_value"
-  ) %>%
-  pivot_longer(
-    cols = all_of(metrics),
-    names_to = "outcome_name",
-    values_to = "outcome_value"
-  )
+  pivot_longer(cols = all_of(predictors),
+               names_to = "predictor_name",
+               values_to = "predictor_value") %>%
+  pivot_longer(cols = all_of(metrics),
+               names_to = "outcome_name",
+               values_to = "outcome_value")
 
 mean_line <- outcomes_long %>%
   group_by(peak_coeff, predictor_name, outcome_name) %>%
   mutate(bin = cut(predictor_value, breaks = 100)) %>%
   group_by(peak_coeff, predictor_name, outcome_name, bin) %>%
-  summarise(
-    mean_outcome_value = mean(outcome_value, na.rm = TRUE),
-    mid = extract_and_calculate_midpoint(bin)
-    # lowerQuantile = quantile(outcome_value, 0.25, na.rm = TRUE),
-    # upperQuantile = quantile(outcome_value, 0.75, na.rm = TRUE)
-  )
+  summarise(mean_outcome_value = mean(outcome_value, na.rm = TRUE),
+            mid = extract_and_calculate_midpoint(bin))
+# lowerQuantile = quantile(outcome_value, 0.25, na.rm = TRUE),
+# upperQuantile = quantile(outcome_value, 0.75, na.rm = TRUE))
 
 # PLOTS -------------------------------------------------------------------
 # https://github.com/plotly/rasterly
@@ -90,171 +86,283 @@ mean_line <- outcomes_long %>%
 outcomes_df %>%
   mutate(est = delta  - bias) %>%
   ggplot(aes(x = delta, y = est)) +
-  facet_wrap(~peak_coeff) +
+  facet_wrap(~ peak_coeff) +
   geom_point(alpha = 0.4) +
   geom_abline(col = "steelblue") +
-  theme_classic()+
-  labs( x = "Truth", y = "Estimate")
+  theme_classic() +
+  labs(x = "Truth", y = "Estimate")
 
 # calculate R2 and RMSE for each peak_coeff
-lapply(
-  sort(unique(outcomes_df$peak_coeff)),
-  function(x) {
-    outcomes_df %>%
-      filter(peak_coeff == x) %>%
-      mutate(est = delta  - bias) %>%
-      yardstick::rsq(truth = delta, estimate = est)
-  }
-) %>% bind_rows() %>%
+lapply(sort(unique(outcomes_df$peak_coeff)),
+       function(x) {
+         outcomes_df %>%
+           filter(peak_coeff == x) %>%
+           mutate(est = delta  - bias) %>%
+           yardstick::rsq(truth = delta, estimate = est)
+       }) %>% bind_rows() %>%
   cbind(peak_coeff = sort(unique(outcomes_df$peak_coeff)))
 
 outcomes_df %>%
   mutate(est = delta  - bias) %>%
   yardstick::rsq(truth = delta, estimate = est)
 
-lapply(
-  sort(unique(outcomes_df$peak_coeff)),
-  function(x) {
-    outcomes_df %>%
-      filter(peak_coeff == x) %>%
-      mutate(est = delta  - bias) %>%
-      yardstick::rmse(truth = delta, estimate = est)
-  }
-) %>% bind_rows() %>%
+lapply(sort(unique(outcomes_df$peak_coeff)),
+       function(x) {
+         outcomes_df %>%
+           filter(peak_coeff == x) %>%
+           mutate(est = delta  - bias) %>%
+           yardstick::rmse(truth = delta, estimate = est)
+       }) %>% bind_rows() %>%
   cbind(peak_coeff = sort(unique(outcomes_df$peak_coeff)))
 
 outcomes_df %>%
   mutate(est = delta  - bias) %>%
   yardstick::rmse(truth = delta, estimate = est)
 
-cell_df <- do.call(
-  "rbind",
-  split(
-    outcomes_long,
-    interaction(outcomes_long$outcome_name, outcomes_long$predictor_name)
-  ) |>
-    lapply(function(d) {
-      hb <- hexbin::hexbin(d$predictor_value,
-        d$outcome_value,
-        xbins = 100,
-        IDs = TRUE
-      )
-      cbind(
-        aggregate(d$peak_coeff, by = list(hb@cID), FUN = mean),
-        count = hb@count,
-        X = hexbin::hcell2xy(hb)$x,
-        Y = hexbin::hcell2xy(hb)$y,
-        outcome_name = d$outcome_name[1],
-        predictor_name = d$predictor_name[1]
-      )
-    })
+
+
+
+
+# Peak Coeff --------------------------------------------------------------
+mean_sd <- function(x) {
+  m <- mean(x, na.rm = TRUE)
+  ymin <- m - sd(x, na.rm = TRUE)
+  ymax <- m + sd(x, na.rm = TRUE)
+  return(c(y = m, ymin = ymin, ymax = ymax))
+}
+
+med <- function(x) {
+  m <- median(x, na.rm = TRUE)
+  return(c(y = m))
+}
+
+
+hline_dat = data.frame(
+  outcome_name =  unique(outcomes_long$outcome_name),
+  target = c(0.95, 0, 1)
 )
 
+outcomes_long %>%
+  mutate(peak_coeff = as.factor(peak_coeff)) %>%
+  ggplot(aes(x = peak_coeff, y = outcome_value,
+             fill = peak_coeff)) +
+  facet_wrap( ~ outcome_name,
+              scales = "free") +
+  geom_violin(trim = FALSE,
+              scale = "count",
+              bw = 0.01) +
+  stat_summary(fun.data = mean_sd,  col = "black") +
+  stat_summary(
+    fun.data = med,
+    shape = 1,
+    col = "white",
+    geom = "point"
+  ) +
+  geom_hline(data = hline_dat, aes(yintercept = target), linetype = "solid") +
+  scale_fill_viridis_d("Peak Coefficient") +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  labs(x = "", y = "Metric Value")
 
-p_hexbin <- cell_df %>%
-  ggplot() +
+
+
+
+
+# HEXBIN ------------------------------------------------------------------
+
+p_hexbin <- outcomes_long %>%
+  filter(peak_coeff == 1.6) %>%
+  ggplot(aes(x = predictor_value, y = outcome_value)) +
   facet_grid(outcome_name ~ predictor_name, scales = "free") +
-  geom_hex(
-    aes(
-      x = X,
-      y = Y,
-      fill = x,
-      alpha = count
-    ),
-    stat = "identity"
+  geom_hex(aes(fill = stat(log(count)),
+               alpha = stat(log(count))),
+           bins = 100) +
+
+  geom_smooth(
+    method = "gam",
+    formula = y ~ s(x, bs = "cs", k = 7),
+    # k=7 because max n_groups = 8
+    linewidth = 0.5,
+    color = "orange",
+    alpha = 1
   ) +
-  geom_line(
-    data = mean_line,
-    aes(
-      y = mean_outcome_value,
-      x = mid,
-      col = peak_coeff,
-      group = factor(peak_coeff)
-    )
-  ) +
-  scale_fill_viridis_c(option = "inferno") +
-  scale_color_viridis_c(
+  geom_hline(data = hline_dat, aes(yintercept = target), linetype = "solid") +
+
+
+  scale_fill_viridis_c(
     option = "inferno",
+    limits = c(1, 10),
+    trans = "log", # produces a warning message but doesn't affect plot
+    begin = 0.1,
+    end = 0.85,
+    label = function(x)
+      round(exp(x)),
     guide = "none"
   ) +
-  scale_alpha_continuous(range = c(0.8, 1), guide = "none") +
+  scale_alpha_continuous(range = c(0.9, 1),
+                         guide = "none") +
   theme_classic() +
   theme(
     legend.position = "bottom",
-    panel.background = element_rect(fill = "#d3d3d3"),
-    strip.text.x = element_text(
-      size = 12, family = "serif"
-    ),
-    strip.text.y = element_text(
-      size = 12, family = "serif"
-    )
+    panel.background = element_rect(fill = "#e7e7e7"),
+    strip.text.x = element_text(size = 12, family = "serif"),
+    strip.text.y = element_text(size = 12, family = "serif")
   ) +
   labs(
     title = "Relationship between predictors and outcomes",
-    fill = "Peak Coefficient",
     x = "predictor value",
     y = "outcome value",
-    caption = "Color: Represents the mean value of the peak coefficient within each hexagonal bin.
-Transparency: Indicates data density, with more transparent bins having fewer data points.
-       Line: average estimate"
+    caption = "smooth line was computed using a Generalized Additive Model (GAM) smoothing technique with a cubic spline function and 7 knots."
   )
+p_hexbin
 
-ggsave(here("analysis/simulation/plots", "hexbin.svg"),
+ggsave(
+  here("analysis/simulation/plots", "hexbin_1_6.svg"),
   plot = p_hexbin,
   width = 16,
   height = 8,
   units = "in",
   dpi = 300
 )
-# the plot represents a grid of hexagonal bins, where each bin's color (fill) is determined by the mean value of the factor variable within that bin. The transparency (alpha) of each bin is based on the count of data points within the bin, with more transparent bins representing areas with fewer data points.
+#ligne de countour
+# OLD HEXBIN PLOT ---------------------------------------------------------
+#
+# cell_df <- do.call("rbind",
+#                    split(
+#                      outcomes_long,
+#                      interaction(outcomes_long$outcome_name, outcomes_long$predictor_name)
+#                    ) |>
+#                      lapply(function(d) {
+#                        hb <- hexbin::hexbin(d$predictor_value,
+#                                             d$outcome_value,
+#                                             xbins = 100,
+#                                             IDs = TRUE)
+#                        cbind(
+#                          aggregate(d$peak_coeff, by = list(hb@cID), FUN = mean),
+#                          count = hb@count,
+#                          X = hexbin::hcell2xy(hb)$x,
+#                          Y = hexbin::hcell2xy(hb)$y,
+#                          outcome_name = d$outcome_name[1],
+#                          predictor_name = d$predictor_name[1]
+#                        )
+#                      }))
+#
+#
+# p_hexbin <- cell_df %>%
+#   ggplot() +
+#   facet_grid(outcome_name ~ predictor_name, scales = "free") +
+#   geom_hex(aes(
+#     x = X,
+#     y = Y,
+#     fill = x,
+#     alpha = count
+#   ),
+#   stat = "identity") +
+#   geom_line(data = mean_line,
+#             aes(
+#               y = mean_outcome_value,
+#               x = mid,
+#               col = peak_coeff,
+#               group = factor(peak_coeff)
+#             )) +
+#   scale_fill_viridis_c(option = "inferno") +
+#   scale_color_viridis_c(option = "inferno",
+#                         guide = "none") +
+#   scale_alpha_continuous(range = c(0.8, 1), guide = "none") +
+#   theme_classic() +
+#   theme(
+#     legend.position = "bottom",
+#     panel.background = element_rect(fill = "#d3d3d3"),
+#     strip.text.x = element_text(size = 12, family = "serif"),
+#     strip.text.y = element_text(size = 12, family = "serif")
+#   ) +
+#   labs(
+#     title = "Relationship between predictors and outcomes",
+#     fill = "Peak Coefficient",
+#     x = "predictor value",
+#     y = "outcome value",
+#     caption = "Color: Represents the mean value of the peak coefficient within each hexagonal bin.
+# Transparency: Indicates data density, with more transparent bins having fewer data points.
+#        Line: average estimate"
+#   )
+#
+# ggsave(
+#   here("analysis/simulation/plots", "hexbin.svg"),
+#   plot = p_hexbin,
+#   width = 16,
+#   height = 8,
+#   units = "in",
+#   dpi = 300
+# )
+# # the plot represents a grid of hexagonal bins, where each bin's color (fill) is determined by the mean value of the factor variable within that bin. The transparency (alpha) of each bin is based on the count of data points within the bin, with more transparent bins representing areas with fewer data points.
+#
+# p_hexbin
 
-p_hexbin
 
 
 
+#
+# formula <- y ~ x
+# plot_scatter(model_df,
+#              x = "r0",
+#              y = "bias") +
+#   stat_smooth(method = "lm") +
+#   ggpubr::stat_regline_equation(aes(label = paste(..eq.label.., "   ", ..adj.rr.label.., sep = "~")),
+#                                 col = "steelblue")
+#
+# formula <- y ~ poly(x, 2, raw = TRUE)
+# plot_scatter(model_df,
+#              x = "size",
+#              y = "bias",
+#              facet_vars = "peak_coeff") +
+#   stat_smooth(method = "lm", formula = formula) +
+#   ggpubr::stat_regline_equation(aes(label = paste(..eq.label.., "   ", ..adj.rr.label.., sep = "~")),
+#                                 formula = formula,
+#                                 col = "steelblue")
+#
+#
+# plot_heatmap(
+#   outcomes_df,
+#   "delta",
+#   "bias",
+#   x_breaks = seq(-1, 1, 0.1),
+#   y_breaks = seq(-2, 2, 0.1),
+#   bin = FALSE,
+#   min_alpha = 0.8
+# )
 
 
-formula <- y~x
-plot_scatter(model_df,
-  x = "r0",
-  y = "bias"
-) +
-  stat_smooth(method = "lm") +
-  ggpubr::stat_regline_equation(
-    aes(label = paste(..eq.label.., "   ", ..adj.rr.label.., sep = "~")),
-    col = "steelblue"
-  )
 
-formula <- y ~ poly(x, 2, raw = TRUE)
-plot_scatter(model_df,
-  x = "size",
-  y = "bias",
-  facet_vars = "peak_coeff"
-) +
-  stat_smooth(method = "lm", formula = formula) +
-  ggpubr::stat_regline_equation(
-    aes(label = paste(..eq.label.., "   ", ..adj.rr.label.., sep = "~")),
-    formula = formula,
-    col = "steelblue"
-  )
-
-
-plot_heatmap(
-  outcomes_df,
-  "delta",
-  "bias",
-  x_breaks = seq(-1, 1, 0.1),
-  y_breaks = seq(-2, 2, 0.1),
-  bin = FALSE,
-  min_alpha = 0.8
-)
-
+# outcomes_df %>%
+#   filter(peak_coeff == 1.3) %>%
+#   select(delta, bias) %>%
+#   ggplot(aes(x = sqrt(delta), y = bias))+
+#   geom_point()+
+#   geom_smooth()
+#
+#
+# outcomes_df %>%
+#   filter(peak_coeff == 1.3) %>%
+#   select(trials, bias) %>%
+#   ggplot(aes(x = 1/trials, y = bias))+
+#   geom_point()+
+#   geom_smooth(method= "lm")+
+#   ggpubr::stat_regline_equation()
+#
+# outcomes_df %>%
+#   filter(peak_coeff == 1.3) %>%
+#   select(r0, bias) %>%
+#   ggplot(aes(x = 1/r0, y = bias))+
+#   geom_point()+
+#   geom_smooth(method= "lm")+
+#   ggpubr::stat_regline_equation()
 
 
 
 # Correlations ------------------------------------------------------------
 
-corr <- outcomes %>%
+corr <- outcomes_df %>%
   select(!c(scenario, name, peak_coeff)) %>%
   drop_na() %>%
   cor()
