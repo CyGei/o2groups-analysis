@@ -58,3 +58,29 @@ test_skim_output <- function(scenarios, results, n_sample = NULL) {
     }
   })
 }
+
+
+
+
+
+# outcomes_df -------------------------------------------------------------
+#outcomes_df is aggregated over the simulations
+
+test_outcomes_df_conditions <- function(outcomes_df) {
+  test_that("Testing outcomes_df conditions", {
+
+    # Check condition 1: Sensitivity and Specificity
+    expect_true(all(
+      xor(!is.na(outcomes_df$sensitivity), !is.na(outcomes_df$specificity))
+    ),
+    info = "Condition 1 failed: Sensitivity and Specificity are not exclusive")
+
+    # Check condition 2: Significance and Sensitivity/Specificity
+    expect_true(all(
+      outcomes_df$significance == outcomes_df$sensitivity |
+        outcomes_df$significance == outcomes_df$specificity
+    ),
+    info = "Condition 2 failed: Significance does not match Sensitivity or Specificity")
+  })
+}
+

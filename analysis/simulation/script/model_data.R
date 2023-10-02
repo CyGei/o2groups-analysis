@@ -63,6 +63,8 @@ model_df <-
         scenarios_df,
         by = c("scenario", "name")) %>%
   mutate(
+    beta = successes / trials,
+    intro_prop = intro_n / size,
     bias = delta - est,
     is_within_ci = ifelse(delta >= lower_ci &
                             delta <= upper_ci,
@@ -73,7 +75,19 @@ model_df <-
                              FALSE),
     significant_est = ifelse(lower_ci > 0 | upper_ci < 0,
                            TRUE,
-                           FALSE)
+                           FALSE),
+    true_positive = ifelse(significant_est == TRUE & significant_delta == TRUE,
+                          1,
+                          0),
+    true_negative = ifelse(significant_est == FALSE & significant_delta == FALSE,
+                          1,
+                          0),
+    false_positive = ifelse(significant_est == TRUE & significant_delta == FALSE,
+                           1,
+                           0),
+    false_negative = ifelse(significant_est == FALSE & significant_delta == TRUE,
+                           1,
+                           0)
   ) %>%
   select(
     scenario,
@@ -83,6 +97,7 @@ model_df <-
     n_groups,
     size,
     intro_n,
+    intro_prop,
     r0,
     GT_mean,
     GT_sd,
@@ -96,8 +111,13 @@ model_df <-
     is_within_ci,
     significant_delta,
     significant_est,
+    true_positive,
+    true_negative,
+    false_positive,
+    false_negative,
     successes,
-    trials
+    trials,
+    beta
   )
 
 
@@ -106,17 +126,23 @@ model_df <-
 # Calculate coverage, bias, and significance aggregated over simulations
 outcomes_df <- model_df %>%
   group_by(scenario, peak_coeff, name) %>%
-  #filter(significant_delta == TRUE) %>% #TODO: MENTION HOW TO PLOT/TREAT SIGNIFICANCE WITH DELTA = 0
   summarise(
     coverage = sum(is_within_ci, na.rm = TRUE) / n(),
     bias = mean(bias, na.rm = TRUE),
-    #significance should always be 1
     significance = sum(significant_est == significant_delta, na.rm = TRUE) / n(),
+    sensitivity = sum(true_positive, na.rm = TRUE) / sum(significant_delta, na.rm = FALSE),
+    specificity = sum(true_negative, na.rm = TRUE) / sum(significant_delta == FALSE, na.rm = FALSE),
+    ppv = sum(true_positive, na.rm = TRUE) / sum(significant_est, na.rm = FALSE),
+    npv = sum(true_negative, na.rm = TRUE) / sum(significant_est == FALSE, na.rm = FALSE),
     trials = mean(trials, na.rm = TRUE),
     successes = mean(successes, na.rm = TRUE)
   ) %>%
   ungroup() %>%
-  left_join(scenarios_df, by = c("scenario", "name"))
+  left_join(scenarios_df, by = c("scenario", "name")) %>%
+  mutate(intro_prop = intro_n / size,
+         beta = successes / trials)
+
+test_outcomes_df_conditions(outcomes_df)
 
 
 dir.create(here("analysis/simulation/data", "model"))

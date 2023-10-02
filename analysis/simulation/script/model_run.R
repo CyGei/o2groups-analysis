@@ -12,7 +12,7 @@ model_df <-
 # Define the workflow
 bias_wf <- workflow() %>%
   add_formula(bias ~ .) %>%
-  add_model(lme4::glmer, formula = bias ~ (1 | scenario) + (1 | simulation) + (1 | group), data = model_df)
+  add_model(lme4::glmer, formula = bias ~ (1 | scenario) + (1 | simulation) + (1 | group), data = train)
 
 # Define the model grid
 model_grid <- grid_lmer(
@@ -68,27 +68,32 @@ metrics <- c("coverage", "bias", "significance")
 # (countinuous_predictor | random_effect_group) for a random-effect slope.-> a different slope for each rand effect group
 # a random-effect slope may be estimated for each group using (slope | group)
 test_data <- model_df %>%
+  filter(n_groups <= 3) %>%
   filter(scenario %in% unique(scenario)[1:12]) %>%
   mutate(intro_prop = intro_n / size,
-    across(all_of(predictors), ~ as.numeric(scale(.x)))) %>%
+         simulation = as.factor(simulation),
+         bias = abs(bias),
+         across(all_of(predictors), ~ as.numeric(scale(.x)))) %>%
+  select(all_of(c("scenario","name", "bias", predictors))) %>%
+  drop_na() %>%
   as_tibble()
-
-# show any rows with NA values in any column
-test_data %>%
-  filter(if_any(everything(), is.na))
-
-#plot y = bias, x = delta, color = scenario
-ggplot(test_data, aes(x = delta, y = bias,
-                      color = peak_coeff)) +
-  facet_wrap(~scenario, scales = "free")+
-  geom_hline(aes(yintercept = 0))+
-  geom_point() +
-  theme_classic()+
-  theme(legend.position = "none")
 
 library(lme4)
 library(lmerTest)
-#This model treats name as a nested random effect within scenario, allowing for different sets of names within each scenario.
+# This model treats name as a nested random effect within scenario,
+# allowing for different sets of names within each scenario.
+
+
+m0 <-
+  lmerTest::lmer(
+    bias ~ delta + n_groups + size + intro_prop + r0 + GT_mean + GT_sd +
+      INCUB_mean + INCUB_sd + trials + successes + peak_coeff +
+      (1 | scenario:name),
+    data = test_data
+  )
+summary(m0)
+ranef(m0)
+
 
 
 m1 <-
@@ -100,17 +105,19 @@ m1 <-
     data = test_data
   )
 summary(m1)
+ranef(m1)
+anova(m0, m1)
 
 
 m2 <-
   lmerTest::lmer(
-    bias ~ delta + size + r0  + trials + successes + peak_coeff +
-      (1 | scenario:name) +
-      (1 | peak_coeff),
+    bias ~ delta + n_groups + size + intro_prop + r0 + GT_mean + GT_sd +
+      INCUB_mean + INCUB_sd + trials + successes + peak_coeff +
+      (1 + peak_coeff | scenario:name),
     data = test_data
   )
 summary(m2)
-
+ranef(m2)
 anova(m1, m2)
 
 
@@ -120,27 +127,49 @@ anova(m1, m2)
 test_data %>%
   mutate(pred = predict(m2)) %>%
   ggplot(aes(x = pred, y = bias,
-             shape = name,
              color = as.factor(peak_coeff))) +
-  geom_point(alpha = 0.2) +
+  geom_point(alpha = 0.8, size = 0.5) +
   geom_smooth(method = "lm",
               se = FALSE,
-              aes(group = interaction(scenario, name, peak_coeff)))+
+              aes(group = interaction(scenario, name, peak_coeff)),
+              linewidth = 0.5)+
 
   #geom_line(aes(group = interaction(scenario, name, peak_coeff))) +
-  facet_wrap(~scenario, scales = "free") +
+  facet_grid(name~scenario) +
   theme_classic() +
+  scale_color_viridis_d()+
   theme(legend.position = "none")
 
 
 test_data %>%
   mutate(pred = predict(m2)) %>%
-  filter(scenario %in% unique(scenario)[1]) %>%
+  filter(scenario %in% unique(scenario)[4]) %>%
   filter(name == "A") %>%
   ggplot(aes(x = pred, y = bias,
              color = as.factor(peak_coeff))) +
-  geom_point() +
-  geom_smooth(method = "lm")+
+  geom_point(alpha = 0.8, size = 0.5) +
+  geom_smooth(method = "lm",
+              se = FALSE,
+              aes(group = interaction(scenario, name, peak_coeff)),
+              linewidth = 0.5)+
+
+  #geom_line(aes(group = interaction(scenario, name, peak_coeff))) +
+  facet_grid(name~scenario) +
   theme_classic() +
+  scale_color_viridis_d()+
   theme(legend.position = "none")
 
+
+
+
+
+
+# tidy --------------------------------------------------------------------
+#use workflowsets to test different models recipes
+
+
+lmer_spec <- linear_reg() %>%
+  set_engine("lmerTest") %>%
+  set_mode("regression")
+
+formula1 <-
