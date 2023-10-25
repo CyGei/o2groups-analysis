@@ -59,3 +59,4 @@ analysis/manual/data/
 
 #ingnore any .svg files
 *.svg
+*.png

@@ -1,6 +1,8 @@
 # master file for MANUAL analysis
 library(tidyverse)
+library(furrr)
 library(here)
+library(o2groups)
 
 subdirectories <- c("scenarios", "simulations", "results", "logs")
 purrr::walk(subdirectories, ~ dir.create(here::here("analysis/manual/data", .x), recursive = TRUE))
@@ -18,7 +20,7 @@ source(here("analysis/simulation/script/process_simulations.R"))
 n_workers <- future::availableCores() - 1
 plan(multisession, workers = n_workers)
 n_simulations <- 100
-peak_coeffs <- seq(0.7, 1, 0.1)
+peak_coeffs <- seq(0.8, 1.2, 0.1)
 
 
 furrr::future_walk(scenarios, function(scenario) {
@@ -63,3 +65,5 @@ furrr::future_walk(scenarios, function(scenario) {
 }, .options = furrr_options(seed = NULL))
 
 
+#Generate final data
+source(here("analysis/manual/scripts", "model_data.R"))
