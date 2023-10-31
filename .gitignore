@@ -54,7 +54,8 @@ analysis/quarto/images/
 analysis/quarto/perfomance_files/
 
 # Ignore data folder from simulation & manual
-analysis/simulation/data/
+analysis/simulation/data/*
+!analysis/simulation/data/outcomes_df.rds
 analysis/manual/data/
 
 #ingnore any .svg files
