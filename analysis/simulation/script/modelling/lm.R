@@ -44,7 +44,7 @@ lm_df <- outcomes_df %>%
 lm_df %>% names()
 
 
-outcomes <- c("senstivity", "specificity", "bias", "abs_bias", "bias_type")
+outcomes <- c("sensitivity", "specificity", "bias", "abs_bias", "bias_type")
 
 predictors <- c("n_pairs", "n_pairs_cat", "size", "size_cat", "size_freq", "size_freq_cat", "size_diff", "n_groups", "beta", "beta_diff", "delta", "abs_delta", "delta_type", "delta_diff", "r0", "intro_prop")
 

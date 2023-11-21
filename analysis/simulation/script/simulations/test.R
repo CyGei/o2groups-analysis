@@ -60,6 +60,43 @@ test_skim_output <- function(scenarios, results, n_sample = NULL) {
 }
 
 
+# n_cases_df -----------------------------------------------------------------
+
+test_n_cases_df <- function(n_cases_df) {
+  test_that("n_cases_df is complete", {
+    # Check for NA values in the 'simulation' column
+    has_na_simulations <- any(is.na(n_cases_df$simulation))
+
+    # Check that all simulations are present for each scenario
+    all_simulations_valid <- all(
+      n_cases_df %>%
+        group_by(scenario) %>%
+        summarise(
+          simulation_min = min(simulation),
+          simulation_max = max(simulation),
+          actual_simulations = list(unique(simulation))
+        ) %>%
+        rowwise() %>%
+        mutate(
+          all_simulations_present = identical(
+            simulation_min:simulation_max,
+            unlist(sort(actual_simulations))
+          )
+        ) %>% .$all_simulations_present
+    )
+
+    expect_false(
+      has_na_simulations,
+      info = "n_cases_df contains NA values in the 'simulation' column"
+    )
+
+    expect_true(
+      all_simulations_valid,
+      info = "n_cases_df does not contain all simulations for each scenario"
+    )
+
+  })
+}
 
 
 
@@ -75,12 +112,18 @@ test_outcomes_df_conditions <- function(outcomes_df) {
     ),
     info = "Condition 1 failed: Sensitivity and Specificity are not exclusive")
 
-    # Check condition 2: Significance and Sensitivity/Specificity
+    # Check that n_cases is <= total_cases
     expect_true(all(
-      outcomes_df$significance == outcomes_df$sensitivity |
-        outcomes_df$significance == outcomes_df$specificity
+      outcomes_df$n_cases <= outcomes_df$total_cases
     ),
-    info = "Condition 2 failed: Significance does not match Sensitivity or Specificity")
+    info = "Condition 2 failed: n_cases is greater than total_cases")
+
+    # # Check condition 2: Significance and Sensitivity/Specificity
+    # expect_true(all(
+    #   outcomes_df$significance == outcomes_df$sensitivity |
+    #     outcomes_df$significance == outcomes_df$specificity
+    # ),
+    # info = "Condition 2 failed: Significance does not match Sensitivity or Specificity")
   })
 }
 

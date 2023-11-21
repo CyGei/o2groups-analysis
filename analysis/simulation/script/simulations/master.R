@@ -66,6 +66,7 @@ process_time <- system.time({
       return(sim)
     })
 
+
     # Delta Estimates
     results <-
       process_simulations(simulations, peak_coeffs, scenario)
@@ -81,7 +82,6 @@ process_time <- system.time({
       "results",
       paste0(scenario$scenario, ".rds")
     ))
-
   }, .options = furrr_options(seed = NULL))
 
 })

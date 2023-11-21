@@ -51,6 +51,7 @@ scenarios_df <-
   bind_rows() %>%
   rename(delta = scaled_delta)
 
+
 results_df <- bind_rows(results) %>%
   mutate(across(
     .cols = c("est", "lower_ci", "upper_ci"),
@@ -60,10 +61,9 @@ results_df <- bind_rows(results) %>%
 
 model_df <-
   left_join(results_df,
-        scenarios_df,
+            scenarios_df,
         by = c("scenario", "name")) %>%
   mutate(
-    beta = successes / trials,
     intro_prop = intro_n / size,
     bias = delta - est,
     is_within_ci = ifelse(delta >= lower_ci &
@@ -92,8 +92,25 @@ model_df <-
   select(
     scenario,
     simulation,
-    peak_coeff,
     name,
+    peak_coeff,
+    peak_date,
+    delta,
+    est,
+    lower_ci,
+    upper_ci,
+    bias,
+    successes,
+    trials,
+    n_cases,
+    total_cases,
+    is_within_ci,
+    significant_delta,
+    significant_est,
+    true_positive,
+    true_negative,
+    false_positive,
+    false_negative,
     n_groups,
     size,
     intro_n,
@@ -102,54 +119,62 @@ model_df <-
     GT_mean,
     GT_sd,
     INCUB_mean,
-    INCUB_sd,
-    delta,
-    est,
-    lower_ci,
-    upper_ci,
-    bias,
-    is_within_ci,
-    significant_delta,
-    significant_est,
-    true_positive,
-    true_negative,
-    false_positive,
-    false_negative,
-    successes,
-    trials,
-    beta
+    INCUB_sd
   )
 
 
 
 
-# Calculate coverage, bias, and significance aggregated over simulations
+# Metrics over all simulations
 outcomes_df <- model_df %>%
   group_by(scenario, peak_coeff, name) %>%
   summarise(
+    peak_date = mean(peak_date, na.rm = TRUE),
     coverage = sum(is_within_ci, na.rm = TRUE) / n(),
     bias = mean(bias, na.rm = TRUE),
-    significance = sum(significant_est == significant_delta, na.rm = TRUE) / n(),
+    # significance = sum(significant_est == significant_delta, na.rm = TRUE) / n(),
     sensitivity = sum(true_positive, na.rm = TRUE) / sum(significant_delta, na.rm = FALSE),
     specificity = sum(true_negative, na.rm = TRUE) / sum(significant_delta == FALSE, na.rm = FALSE),
     ppv = sum(true_positive, na.rm = TRUE) / sum(significant_est, na.rm = FALSE),
     npv = sum(true_negative, na.rm = TRUE) / sum(significant_est == FALSE, na.rm = FALSE),
     trials = mean(trials, na.rm = TRUE),
-    successes = mean(successes, na.rm = TRUE)
+    successes = mean(successes, na.rm = TRUE),
+    n_cases = mean(n_cases, na.rm = TRUE),
+    total_cases = mean(total_cases, na.rm = TRUE)
   ) %>%
   ungroup() %>%
   left_join(scenarios_df, by = c("scenario", "name")) %>%
+  ungroup() %>%
   mutate(intro_prop = intro_n / size,
-         beta = successes / trials)
+         group_susceptibles = 1 - (n_cases / size)) %>%
+  group_by(scenario, peak_coeff) %>%
+  mutate(
+    size_freq = size / sum(size, na.rm = TRUE),
+    sd_peak_date = sd(peak_date, na.rm = TRUE),
+    sd_n_cases = sd(n_cases, na.rm = TRUE),
+    sd_size = sd(size, na.rm = TRUE),
+    sd_size_freq = sd(size_freq, na.rm = TRUE),
+    sd_delta = sd(delta, na.rm = TRUE),
+    sd_r0 = sd(r0, na.rm = TRUE),
+    sd_intro_n = sd(intro_n, na.rm = TRUE),
+    sd_intro_prop = sd(intro_prop, na.rm = TRUE),
+    sd_group_susceptibles = sd(group_susceptibles, na.rm = TRUE),
+    total_susceptibles = 1 - (sum(n_cases) / sum(size))
+  ) %>%
+  ungroup()
+
+# mutate(significance = ifelse(delta == 0, 1 - significance, significance))
+
 
 test_outcomes_df_conditions(outcomes_df)
 
-
+# Save -----------------------------------------------------------------------
 dir.create(here("analysis/simulation/data", "model"))
 saveRDS(scenarios_df, here("analysis/simulation/data/model", "scenarios_df.rds"))
 saveRDS(results_df, here("analysis/simulation/data/model", "results_df.rds"))
 saveRDS(model_df, here("analysis/simulation/data/model", "model_df.rds"))
 saveRDS(outcomes_df, here("analysis/simulation/data/model", "outcomes_df.rds"))
+
 
 
 #library(data.table)
