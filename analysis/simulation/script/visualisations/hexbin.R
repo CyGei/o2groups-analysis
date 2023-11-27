@@ -347,7 +347,6 @@ cell_df_main <- cell_df %>%
 outcomes_long_main <- outcomes_long %>%
   filter(predictor_name %in% main_predictor_labels)
 
-
 p_custom_hexbin_main <-
   cell_df_main %>%
   ggplot() +
@@ -388,11 +387,11 @@ p_custom_hexbin_main <-
     linewidth = 0.5,
     alpha = 0.5
   ) +
-  scale_color_gradientn(
-    colours = c("#3679c0", "black", "#ff007f"),
-    values = scales::rescale(c(-0.5, -0.05, 0, 0.05, 0.5)),
-    guide = "none"
-  ) +
+scale_color_gradientn(
+  colours = c("#3679c0", "black", "#ff007f"),
+  values = scales::rescale(c(-0.5, -0.05, 0, 0.05, 0.5)),
+  guide = "none"
+) +
   scale_fill_gradientn(
     colours = c("#3679c0", "black", "#ff007f"),
     values = scales::rescale(c(-0.5, -0.05, 0, 0.05, 0.5)),
@@ -497,3 +496,181 @@ ggsave(
 
 
 
+# MINIMUM VARS ------------------------------------------------------------
+
+
+main_predictors <- c(
+  "delta",
+  "size_freq",
+  "n_cases",
+  "sd_peak_date"
+)
+main_predictor_labels <- c(
+  "delta[G]",
+  "p[s[G]]",
+  "n[cases[G]]",
+  "sigma[peak]")
+
+cell_df_main <- cell_df %>%
+  filter(predictor_name %in% main_predictor_labels)
+outcomes_long_main <- outcomes_long %>%
+  filter(predictor_name %in% main_predictor_labels)
+
+
+
+
+p_hexbin_min_peak1 <-
+  outcomes_long %>%
+  filter(peak_coeff == 1) %>%
+  filter(predictor_name %in% main_predictor_labels) %>%
+  ggplot(aes(x = predictor_value, y = outcome_value)) +
+  ggh4x::facet_nested(
+    outcome_name ~ factor(
+      predictor_level,
+      levels = c("Group Level", "Epidemic Level"),
+      labels = c("Group~Level", "Epidemic~Level")
+    ) +
+      predictor_name,
+    labeller = label_parsed,
+    scales = "free"
+  ) +
+  geom_hex(
+    aes(fill = stat(log(count))),
+    bins = 100
+  ) +
+  # geom_smooth(
+  #   aes(color = "Smoothed Trend"),
+  #   se = TRUE,
+  #   method = "gam",
+  #   formula = y ~ s(x, bs = "cs", k = 7),
+  #   linewidth = 0.5,
+  #   alpha = 0.5
+  # ) +
+  geom_hline(data = hline_df, aes(yintercept = target, color = "target value")) +
+  scale_fill_viridis_c("Log Count",
+                       option = "plasma"
+  ) +
+  scale_color_manual(
+    values = c("#E32227"),
+    labels = c("target value")
+  ) +
+  labs(
+    x = "predictor value",
+    y = "Metric value",
+    linetype = "",
+    color = ""
+  ) +
+  theme_publication(base_size = 14)
+
+
+ggsave(
+  here("analysis/simulation/plots", "hexbin_min_peak1.png"),
+  plot = p_hexbin_min_peak1,
+  width = 16,
+  height = 8,
+  units = "in",
+  dpi = 300
+)
+
+
+
+### color by peak coeff ###
+
+
+main_predictors <- c(
+  "delta",
+  "size_freq",
+  "n_cases",
+  "total_susceptibles",#
+  "sd_peak_date"
+)
+main_predictor_labels <- c(
+  "delta[G]",
+  "p[s[G]]",
+  "n[cases[G]]",
+  "p[susceptibles]",#
+  "sigma[peak]")
+
+cell_df_main <- cell_df %>%
+  filter(predictor_name %in% main_predictor_labels)
+outcomes_long_main <- outcomes_long %>%
+  filter(predictor_name %in% main_predictor_labels)
+
+
+p_hexbin_min <-
+  ggplot(cell_df_main) +
+  ggh4x::facet_nested(
+    outcome_name ~ factor(
+      predictor_level,
+      levels = c("Group Level", "Epidemic Level"),
+      labels = c("Group~Level", "Epidemic~Level")
+    ) +
+      predictor_name,
+    labeller = label_parsed,
+    scales = "free"
+  ) +
+  geom_hex(aes(
+    x = X,
+    y = Y,
+    fill = as.double(peak_coeff),
+    alpha = as.double(log_freq_cat)
+  ),
+  stat = "identity") +
+  geom_hline(
+    data = hline_df,
+    aes(yintercept = target),
+    col = "#E32227",
+    linetype = "solid"
+  ) +
+  geom_smooth(
+    data = outcomes_long_main,
+    aes(
+      x = predictor_value,
+      y = outcome_value,
+      color = as.double(peak_coeff),
+      group = as.double(peak_coeff)
+    ),
+    se = TRUE,
+    method = "gam",
+    formula = y ~ s(x, bs = "cs", k = 7),
+    linewidth = 0.5,
+    alpha = 0.5
+  ) +
+  scale_color_gradientn(
+    colours = c("#3679c0", "black", "#ff007f"),
+    values = scales::rescale(c(-0.5, -0.05, 0, 0.05, 0.5)),
+    guide = "none"
+  ) +
+  scale_fill_gradientn(
+    colours = c("#3679c0", "black", "#ff007f"),
+    values = scales::rescale(c(-0.5, -0.05, 0, 0.05, 0.5)),
+    breaks = peak_coeffs_breaks
+  ) +
+  labs(fill = "Peak Coefficient",
+       x = "Predictor value",
+       y = "Metric value") +
+  theme_publication(base_size = 10)+
+  ggh4x::facetted_pos_scales(
+    y = list(
+      outcome_name == "bias" ~ scale_y_continuous(limits = c(-1, 2), breaks = seq(-2, 2, 0.5)),
+      outcome_name == "coverage" ~ scale_y_continuous(limits = c(0, 1)),
+      outcome_name == "sensitivity" ~ scale_y_continuous(limits = c(0, 1)),
+      outcome_name == "specificity" ~ scale_y_continuous(limits = c(0, 1))
+    )
+    #  scale_x_continuous(labels = function(x) format(x, nsmall = 2))
+  ) +
+  scale_alpha_continuous(
+    "Log Count",
+    range = c(0.33, 2.9),
+    labels = c("0", "2.5", "5", "7.5", "10"),
+  )
+
+
+ggsave(
+  here("analysis/simulation/plots", "hexbin_min.png"),
+  plot = p_hexbin_min,
+  width = 16,
+  height = 8,
+  units = "in",
+  dpi = 300
+)

@@ -175,7 +175,13 @@ tab <- data %>%
     median_outcome = median(value, na.rm = TRUE),
     lower_quantile = quantile(value, 0.25, na.rm = TRUE),
     upper_quantile = quantile(value, 0.75, na.rm = TRUE),
+    mean_outcome = mean(value, na.rm = TRUE),
+    n = n(),
+    sd = sd(value, na.rm = TRUE),
+    lower_ci = mean_outcome - 1.96 * sd / sqrt(n),
+    upper_ci = mean_outcome + 1.96 * sd / sqrt(n),
     median_delta = median(delta, na.rm = TRUE),
+    mean_delta = mean(delta, na.rm = TRUE)
   )
 tab
 
@@ -209,7 +215,7 @@ p_delta_density2d <- ggplot(data) +
                "neutral")
   ),
   scales = "free",
-  independent = "all") +
+  independent = "x") +
   stat_density_2d(
     data = data %>% filter(delta_type != "neutral"),
     aes(
@@ -219,10 +225,10 @@ p_delta_density2d <- ggplot(data) +
       group = interaction(delta_type, outcome)
     ),
     contour = TRUE,
-    # bins = 10,
+    bins = 13,
     contour_var = "ndensity",
-    geom = "polygon",
-    colour = "white"
+    geom = "polygon"
+    #colour = "white"
   ) +
   # geom_point(
   #   data = data %>% filter(delta_type != "neutral"),
@@ -241,6 +247,8 @@ p_delta_density2d <- ggplot(data) +
   geom_hline(data = my_hlines,
              aes(yintercept = target),
              color = "#E32227") +
+
+  #median + IQR interval
   geom_point(data = tab,
              aes(x = median_delta,  y = median_outcome,
                  color = "median")) +
@@ -254,10 +262,29 @@ p_delta_density2d <- ggplot(data) +
     ),
     width = 0.1
   ) +
+
+  # mean + 95% CI
+
+  geom_point(data = tab,
+             aes(x = mean_delta,  y = mean_outcome,
+                 color = "mean")) +
+  geom_errorbar(
+    data = tab,
+    aes(
+      x = mean_delta,
+      ymin = lower_ci,
+      ymax = upper_ci,
+      color = "mean"
+    ),
+    width = 0.1
+  ) +
+
+
   scale_color_manual(
     name = "",
-    values = c("median" = "black"),
-    labels = c("median" = "median,\n50% quantile interval")
+    values = c("median" = "black", mean = "green"),
+    labels = c("median" = "median,\n50% quantile interval",
+               "mean" = "mean,\n95% CI")
   ) +
   theme_publication(base_size = 10) +
   labs(x = as.expression(bquote(bold(delta))),
@@ -265,8 +292,19 @@ p_delta_density2d <- ggplot(data) +
   theme(axis.title.x = element_text(face = "bold")) +
   scale_fill_viridis_c(option = "plasma")
 
+p_delta_density2d <- p_delta_density2d +
+  ggh4x::facetted_pos_scales(
+    y = list(
+      outcome == "bias"~ scale_y_continuous(
+        limits = c(-0.1, 0.3),
+        breaks = seq(-0.5, 0.5, 0.1)
+      ),
+      outcome == "coverage"~ scale_y_continuous(
+        limits = c(0.9, 1)
+      )
+    )
+  )
 p_delta_density2d
-
 
 ggsave(
   here("analysis/simulation/plots", "delta_density2d.png"),
@@ -294,5 +332,3 @@ outcomes_df %>%
             min = min(trials),
             max = max(trials),
             n = n())
-
-
