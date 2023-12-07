@@ -4,13 +4,20 @@ library(purrr)
 library(o2groups)
 library(dplyr)
 
-subdirectories <- c("scenarios", "simulations", "results", "logs")
+subdirectories <-
+  c("scenarios",
+    "simulations",
+    "results",
+    "estimates",
+    "summary",
+    "logs")
 purrr::walk(subdirectories, ~ dir.create(here::here("analysis/simulation/data", .x), recursive = TRUE))
 
 # 0. Parameters --------------------------------------------------------------------------------------------
 n_scenarios <- 10000
 n_simulations <- 100
-peak_coeffs <- sort(c(1, seq(0.5, 1.5, 0.2)))
+peak_coeffs <- sort(c(1, seq(0.5, 1.7, 0.2), 2, 3, 5))
+alpha <- 1 - c(0.50, 0.75, 0.90, 0.95)
 
 # Seed for scenarios
 log_files <- list.files(here("analysis/simulation/data"), pattern = "log_", recursive = TRUE)
@@ -44,7 +51,8 @@ for (i in 1:n_scenarios) {
 
 
 # 2. Run & Process Simulations --------------------------------------------------------------------------------------------
-source(here("analysis/simulation/script/simulations/process_simulations.R"))
+source(here("analysis/simulation/script/simulations/process_helpers.R"))
+
 
 process_time <- system.time({
   furrr::future_walk(scenarios, function(scenario) {
@@ -67,9 +75,57 @@ process_time <- system.time({
     })
 
 
-    # Delta Estimates
+    # Transmissions by Peak cutoffs
     results <-
       process_simulations(simulations, peak_coeffs, scenario)
+
+    # Scenario Dataframe
+    scenario_df <- scenario_to_df(scenario)
+
+    # Beta & Delta Estimates
+    estimates <- purrr::map_dfr(.x = alpha,
+                                .f = ~compute_estimates(
+                                  alpha = .x,
+                                  scenario_df = scenario_df,
+                                  results = results
+                                ))
+
+    # Summarise estimates
+    summary <- estimates %>%
+      group_by(peak_coeff, name, alpha) %>%
+      summarise(
+        peak_date = mean(peak_date, na.rm = TRUE),
+        coverage = sum(is_within_ci, na.rm = TRUE) / n(),
+        bias = mean(bias, na.rm = TRUE),
+        sensitivity = sum(true_positive, na.rm = TRUE) / sum(significant_delta, na.rm = FALSE),
+        specificity = sum(true_negative, na.rm = TRUE) / sum(significant_delta == FALSE, na.rm = FALSE),
+        ppv = sum(true_positive, na.rm = TRUE) / sum(significant_est, na.rm = FALSE),
+        npv = sum(true_negative, na.rm = TRUE) / sum(significant_est == FALSE, na.rm = FALSE),
+        trials = mean(trials, na.rm = TRUE),
+        successes = mean(successes, na.rm = TRUE),
+        n_cases = mean(n_cases, na.rm = TRUE),
+        total_cases = mean(total_cases, na.rm = TRUE),
+        beta_est = mean(beta_est, na.rm = TRUE)
+      ) %>%
+      ungroup() %>%
+      left_join(scenario_df, by = c("name")) %>%
+      mutate(group_susceptibles = 1 - (n_cases / size)) %>%
+      group_by(peak_coeff, alpha) %>%
+      mutate(
+        sd_peak_date = sd(peak_date, na.rm = TRUE),
+        sd_n_cases = sd(n_cases, na.rm = TRUE),
+        sd_size = sd(size, na.rm = TRUE),
+        sd_size_freq = sd(size_freq, na.rm = TRUE),
+        sd_delta = sd(delta, na.rm = TRUE),
+        sd_r0 = sd(r0, na.rm = TRUE),
+        sd_intro_n = sd(intro_n, na.rm = TRUE),
+        sd_intro_prop = sd(intro_prop, na.rm = TRUE),
+        sd_group_susceptibles = sd(group_susceptibles, na.rm = TRUE),
+        total_susceptibles = 1 - (sum(n_cases) / sum(size)),
+        sd_beta_est = sd(beta_est, na.rm = TRUE)
+        ) %>%
+      ungroup()
+
 
     # Write RDS files to respective folders
     saveRDS(simulations, file.path(
@@ -82,6 +138,18 @@ process_time <- system.time({
       "results",
       paste0(scenario$scenario, ".rds")
     ))
+    saveRDS(estimates, file.path(
+      here("analysis/simulation/data"),
+      "estimates",
+      paste0(scenario$scenario, ".rds")
+    ))
+    saveRDS(summary, file.path(
+      here("analysis/simulation/data"),
+      "summary",
+      paste0(scenario$scenario, ".rds")
+    ))
+
+
   }, .options = furrr_options(seed = NULL))
 
 })
@@ -118,6 +186,4 @@ saveRDS(log, file = paste0(
 rm(list = ls())
 gc()
 
-
-# Prepare data for modelling ----------------------------------------------
-source(here("analysis/simulation/script/simulations/output_data.R"))
+#Move to visualisations...
