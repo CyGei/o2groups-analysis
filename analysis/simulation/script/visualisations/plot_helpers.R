@@ -80,7 +80,7 @@ theme_publication <- function(base_size=14, base_family="helvetica") {
             panel.background = element_rect(colour = NA),
             plot.background = element_rect(colour = NA),
             panel.border = element_rect(colour = NA),
-            axis.title = element_text(face = "bold",size = rel(1)),
+            axis.title = element_text(face = "plain",size = rel(1)),
             axis.title.y = element_text(angle=90,vjust =2),
             axis.title.x = element_text(vjust = -0.2),
             axis.text = element_text(),
@@ -94,12 +94,72 @@ theme_publication <- function(base_size=14, base_family="helvetica") {
             legend.key.size= unit(0.5, "cm"),
             legend.key.width = unit(0.7, "cm"),
             legend.margin = margin(0,0,0,0),
-            legend.title = element_text(size = rel(0.85)),
+            legend.title = element_text(face = "bold", size = rel(0.85)),
             plot.margin=unit(c(10,5,5,5),"mm"),
             strip.background=element_rect(colour="black"),
             strip.text = element_text(face="bold", size = rel(1.2))
     ))
 
+}
+
+theme_publication_hexbin <- function(base_size=14, base_family="helvetica") {
+  library(grid)
+  library(ggthemes)
+  (theme_foundation(base_size=base_size, base_family=base_family)
+    + theme(plot.title = element_text(face = "bold",
+                                      size = rel(1.2), hjust = 0.5),
+            text = element_text(),
+            panel.background = element_rect(colour = NA),
+            plot.background = element_rect(colour = NA),
+            panel.border = element_rect(colour = NA),
+            axis.title = element_text(face = "plain",size = rel(1)),
+            axis.title.y = element_text(angle=90,vjust =2),
+            axis.title.x = element_text(vjust = -0.2),
+            axis.text = element_text(),
+            axis.line = element_line(colour="black"),
+            axis.ticks = element_line(),
+            panel.grid.major = element_line(colour="#f0f0f0"),
+            panel.grid.minor = element_blank(),
+            legend.key = element_rect(colour = NA),
+            legend.position = "bottom",
+            legend.direction = "horizontal",
+            legend.key.size= unit(0.5, "cm"),
+            legend.key.width = unit(0.7, "cm"),
+            legend.margin = margin(0,0,0,0),
+            legend.title = element_text(face = "bold", size = rel(0.85)),
+            plot.margin=unit(c(10,5,5,5),"mm"),
+            strip.background=element_rect(colour="black"),
+            strip.text = element_text(size = rel(1.2))
+    ))
+
+}
+
+guide_colour_bar <- function(key_color = "white"){
+  guides(
+    colour = guide_legend(
+      title.position = "top",
+      title.hjust = 0.5,
+      label.position = "bottom",
+      label.theme = element_text(color = key_color, margin = margin(t = -17.5)),
+      keywidth = 2,
+      nrow = 1,
+      byrow = TRUE
+    )
+  )
+}
+
+guide_fill_bar <- function(key_color = "white"){
+  guides(
+    fill = guide_legend(
+      title.position = "top",
+      title.hjust = 0.5,
+      label.position = "bottom",
+      label.theme = element_text(color = key_color, margin = margin(t = -17.5)),
+      keywidth = 2,
+      nrow = 1,
+      byrow = TRUE
+    )
+  )
 }
 
 

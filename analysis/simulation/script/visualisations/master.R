@@ -1,7 +1,6 @@
 library(tidyverse)
 library(here)
 library(furrr)
-library(ggnewscale)
 library(patchwork)
 #library(dtplyr)
 # Helpers -----------------------------------------------------------------
@@ -93,12 +92,12 @@ summary_long <- summary_df %>%
                names_to = "outcome_name",
                values_to = "outcome_value")
 
-summary_long$predictor_name <-
-  factor(summary_long$predictor_name,
-         levels = predictors,
-         labels = label)
-summary_long$outcome_name <-
-  factor(summary_long$outcome_name, levels = c(metrics))
+# summary_long$predictor_name <-
+#   factor(summary_long$predictor_name,
+#          levels = predictors,
+#          labels = label)
+# summary_long$outcome_name <-
+#   factor(summary_long$outcome_name, levels = c(metrics))
 
 
 hline_df = data.frame(outcome_name =  metrics,

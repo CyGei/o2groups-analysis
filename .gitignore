@@ -58,6 +58,8 @@ analysis/simulation/data/*
 !analysis/simulation/data/outcomes_df.rds
 analysis/manual/data/
 
-#ingnore any .svg files
+#ingnore any .svg/.png/.html files
 *.svg
 *.png
+*.html
+
