@@ -6,7 +6,7 @@ library(noah)
 # Function -------------------------------------------------------------------------------------
 # Helper Function
 generate_scenarios_helper <- function() {
-  duration <- 100
+  duration <- 365
 
   n_groups <- round(truncnorm::rtruncnorm(n = 1, a = 1.5, b = 8.1, mean = 2.5, sd = 3))
 
@@ -30,11 +30,13 @@ generate_scenarios_helper <- function() {
 
   delta <- o2groups::reverse_scale(scaled_delta)
 
-  # 1 random introduction + sampling
+  # Max No of introductions set to 10% of group size
+  max_percentage <- 0.1
+  max_introductions <- round((size - 1) * max_percentage)
   intro_n <- integer(n_groups)
   intro_n[sample(n_groups, 1)] <- 1
   for (i in seq_along(n_groups)) {
-    intro_n[i] <- intro_n[i] + round(runif(1, min = 0, max = 0.1 * size[i]))
+    intro_n[i] <- intro_n[i] + round(runif(1, min = 0, max = max_introductions[i]))
   }
 
   r0 <- truncnorm::rtruncnorm(n_groups, a = 1, mean = 2, sd = 2)

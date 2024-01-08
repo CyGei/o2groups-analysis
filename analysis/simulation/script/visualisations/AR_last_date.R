@@ -40,11 +40,14 @@ AR_date <- function(scenario_id){
   return(simulations)
 }
 
-
-tictoc::tic()
 AR_df <- furrr::future_map(scenario_ids, .f = AR_date) %>%
   bind_rows()
-tictoc::toc()
+
+
+# calculate the proportion of simulations which were over by day 75
+AR_df %>%
+  mutate(over_by_75 = last_date > 80) %>%
+  summarise(over_by_75 = mean(over_by_75) * 100)
 
 
 

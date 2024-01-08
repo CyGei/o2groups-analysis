@@ -59,7 +59,7 @@ process_time <- system.time({
     # Simulations
     simulations <- purrr::map(1:n_simulations, function(j) {
       sim <- simulate_groups(
-        duration = 100,
+        duration = scenrio$duration,
         n_groups = scenario$n_groups,
         size = scenario$size,
         name = scenario$name,
