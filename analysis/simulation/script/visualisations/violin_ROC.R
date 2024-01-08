@@ -15,8 +15,12 @@ alpha_pal <- c("#000080", "#0a74ff", "#0aadff", "#00d9ff")
 
 peak_coeff_pal_low <-
   colorRampPalette(c("orange", "white"))(4)
+peak_coeff_pal_low <- c("#f05e16", "#fa9c1b", "#f7be6d", "#ffffff")
 peak_coeff_pal_high <-
-  colorRampPalette(c("white", "#ff00ff"))(length(peak_coeff_breaks) - 4 + 1)
+  colorRampPalette(c("white","#fa0079"))(length(peak_coeff_breaks) - 4 + 1) #"#ff00ff"
+
+# peak_coeff_pal_high <-
+#   c("#ff94c8","#f273b0", "#ff47a0", "#eb0071", "#b4005a", "#a4005a", "#94005a", "#84005a")
 #remove first color of high palette
 peak_coeff_pal_high <- peak_coeff_pal_high[-1]
 peak_coeff_pal <- c(peak_coeff_pal_low, peak_coeff_pal_high)

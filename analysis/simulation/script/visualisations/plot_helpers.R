@@ -128,8 +128,7 @@ theme_publication_hexbin <- function(base_size=14, base_family="helvetica") {
             legend.margin = margin(0,0,0,0),
             legend.title = element_text(face = "bold", size = rel(0.85)),
             plot.margin=unit(c(10,5,5,5),"mm"),
-            strip.background=element_rect(colour="black"),
-            strip.text = element_text(size = rel(1.2))
+            strip.background=element_rect(colour="black")
     ))
 
 }
@@ -161,6 +160,14 @@ guide_fill_bar <- function(key_color = "white"){
     )
   )
 }
+
+
+
+
+rounder <- function(x) {
+  round(x, 2)
+}
+
 
 
 # No gridlines
