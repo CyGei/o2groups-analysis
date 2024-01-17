@@ -72,7 +72,7 @@ p_delta_saturation <- summary_df %>%
   theme_publication() +
   theme(legend.position = c(0.925, 0.22),
         legend.box.background = element_rect(colour = "black", linewidth = 1)) +
-  labs(x = "Delta", y = "Proportion of Susceptibles") +
+  labs(x = latex2exp::TeX(r"($\delta$)"), y = "Proportion of susceptibles") +
   guides(fill = guide_colorbar(title.position = "top",
                                direction = "vertical",
                                barheight = 10),

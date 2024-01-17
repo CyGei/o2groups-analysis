@@ -4,7 +4,13 @@ library(here)
 library(furrr)
 library(patchwork)
 library(santoku)
-#library(dtplyr)
+library(latex2exp)
+##################################
+# Check that epidemics reached herd immunity
+##################################
+# source(here("analysis/simulation/script/visualisations","1_AR_last_date.R"))
+
+
 # Helpers -----------------------------------------------------------------
 source(here("analysis/simulation/script/visualisations/plot_helpers.R"))
 
@@ -53,25 +59,16 @@ alpha_breaks <- 1 - c(0.50, 0.75, 0.90, 0.95)
 summary_df <-
   read_files(path = here("analysis/simulation/data", "summary")) %>%
   bind_rows() %>%
-  mutate(across(c(peak_coeff, alpha), as.factor)) %>%
-  select(-.groups)
+  mutate(across(c(peak_coeff, alpha), as.factor))
 
 summary_long <- summary_df %>%
-  select(-c(peak_date, all_of(extra_metrics))) %>% #predictors <- names(summary_long)[!( names(summary_long) %in% c(metrics, id_vars, extra_metrics))]
+  select(-c(peak_date, all_of(extra_metrics))) %>%
   pivot_longer(cols = all_of(predictors),
                names_to = "predictor_name",
                values_to = "predictor_value") %>%
   pivot_longer(cols = all_of(metrics),
                names_to = "outcome_name",
                values_to = "outcome_value")
-
-# summary_long$predictor_name <-
-#   factor(summary_long$predictor_name,
-#          levels = predictors,
-#          labels = label)
-# summary_long$outcome_name <-
-#   factor(summary_long$outcome_name, levels = c(metrics))
-
 
 hline_df = data.frame(outcome_name =  metrics,
                       target = c(1, 1, 0, 0.95))
@@ -82,22 +79,21 @@ ls_snapshot <- c(ls(), "ls_snapshot")
 # Plots --------------------------------------------------------------------
 
 ##################################
-# Histogram of predictor values
-# p_hist
+# Histogram of scenario parameters
 ##################################
-source(here("analysis/simulation/script/visualisations", "scenario_histograms.R"))
+source(here("analysis/simulation/script/visualisations", "2_scenario_histograms.R"))
 
 ##################################
-# Violin & ROC
+# Violin & ROC results
 ##################################
-source(here("analysis/simulation/script/visualisations", "violin_ROC.R"))
+source(here("analysis/simulation/script/visualisations", "3_violin_ROC.R"))
 
-
 ##################################
-# Hexbin
-# p_hexbin
+# Hexbin:
+# univariate relationship between
+# performance metrics and parameters
 ##################################
-source(here("analysis/simulation/script/visualisations", "hexbin.R"))
+source(here("analysis/simulation/script/visualisations", "4_hexbin.R"))
 
 #Bias
 summary_df %>%
@@ -113,71 +109,24 @@ summary_df %>%
   summarise(across(all_of(metrics), list(mean = ~mean(.x, na.rm = TRUE),
                                          sd = ~sd(.x, na.rm = TRUE))))
 
-##################################
-# Estimator Heatmap
-##################################
-source(here("analysis/simulation/script/visualisations", "estimator_heatmap.R"))
 
-
-
-
-# OTHER ANALYSES ----------------------------------------------------------
+source(here("analysis/simulation/script/visualisations", "5_hexbin_all.R"))
 
 ##################################
-# Delta & Gamma
+# Estimator Grid Diagrams
 ##################################
-source(here("analysis/simulation/script/visualisations", "delta_gamma.R"))
-
+source(here("analysis/simulation/script/visualisations", "6_estimator_grid.R"))
 
 ##################################
-# Peak Coefficient
+# Delta & Gamma & Peak coeff
+# Diagrams
 ##################################
-
-alpha <- 1
-set.seed(123)
-p_peak_coeff <- data.frame(values = rnorm(20000, mean = 10, sd = 2.9)) %>%
-  ggplot() +
-  geom_histogram(aes(x = values, fill = after_stat(x)),
-                 binwidth = 1,
-                 alpha = alpha) +
-  scale_fill_gradientn(
-    "Peak Coefficient",
-    colours = c(
-      alpha("#3679c0", alpha),
-      alpha("black", alpha),
-      alpha("#ff007f", alpha)
-    ),
-    values = scales::rescale(c(-1, -0.2, -0.05, 0, 0.05, 0.2, 1)),
-    labels = c(0, 0.5, 1, 1.5, 2)
-  ) +
-  theme_publication() +
-  theme(axis.ticks.y = element_blank(),
-        axis.text.y = element_blank()) +
-  labs(x = "date of symptom onset", y = "number of cases") +
-  guides(color = guide_colorbar(size = 5)) +
-  scale_y_continuous(
-    labels = function(x)
-      x / 100
-  ) +
-  scale_x_continuous(limits = c(0, 20))
-p_peak_coeff
-
-
-ggsave(
-  here("analysis/simulation/plots", "peak_coeff.png"),
-  plot = p_peak_coeff,
-  width = 16,
-  height = 8,
-  units = "in",
-  dpi = 300
-)
-
-
-
+source(here("analysis/simulation/script/visualisations", "7_delta_gamma_peak_coeff.R"))
 
 
 ##################################
-# Relationship between assorativity & saturation
+# Relationship between assorativity
+# & saturation
 ##################################
-source(here("analysis/simulation/script/visualisations", "delta_saturation.R"))
+source(here("analysis/simulation/script/visualisations", "8_delta_saturation.R"))
 

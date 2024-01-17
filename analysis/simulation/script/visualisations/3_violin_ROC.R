@@ -74,7 +74,7 @@ p_bias <- summary_df %>%
              lty = 2) +
   scale_y_continuous(limits = c(-2, 2), breaks = seq(-2, 2, 0.5)) +
   theme_publication() +
-  labs(x = "Peak coefficient", y = "Bias")
+  labs(x = "Peak window", y = "Bias")
 
 
 # Coverage ----------------------------------------------------------------
@@ -109,12 +109,13 @@ p_coverage <- summary_df %>%
     show.legend = FALSE
   ) +
   scale_y_continuous(limits = c(0.5, 1), breaks = seq(0, 1, 0.1)) +
-  scale_color_manual(name = "Alpha",
+  scale_color_manual(name = "**&alpha;**",
                      values = alpha_pal) +
   guide_colour_bar() +
   theme_publication() +
-  labs(x = "Peak coefficient", y = "Coverage") +
-  theme(legend.key = element_rect(color = "black", size = 1))
+  labs(x = "Peak window", y = "Coverage",) +
+  theme(legend.key = element_rect(color = "black", size = 1),
+        legend.title = ggtext::element_markdown(size = 12))
 
 
 # ROC ---------------------------------------------------------------------
@@ -162,14 +163,16 @@ p_roc <- summary_df %>%
   coord_fixed(clip = "off") +
   scale_colour_manual(name = "Alpha",
                       values = alpha_pal) +
-  scale_fill_manual(name = "Peak coefficient",
+  scale_fill_manual(name = "Peak window",
                     values = peak_coeff_pal) +
-  scale_size_discrete(name = "Peak coefficient",
+  scale_size_discrete(name = "Peak window",
                       range = c(3, 5),
                       guide = "none") +
   guide_colour_bar(key_color = "white") +
   guide_fill_bar(key_color = "black") +
   theme_publication() +
+  labs(x = "1 - Specificity",
+       y = "Sensitivity")+
   theme(legend.key = element_rect(color = "black", size = 1))
 
 # Patchwork ---------------------------------------------------------------
@@ -196,49 +199,26 @@ patch1 <- patchwork::wrap_plots((p_bias / p_coverage) | p_roc,
 ggsave(
   here("analysis/simulation/plots", "patch1.png"),
   patch1,
-  width = 16,
-  height = 8,
+  width = 14,
+  height = 7,
   units = "in",
   dpi = 300
 )
 
+
+
+# Performance Analysis ----------------------------------------------------
+
+perf <- summary_df %>%
+  group_by(alpha, peak_coeff) %>%
+  summarise(across(all_of(metrics), list(mean = ~mean(.x, na.rm = TRUE),
+                                         sd = ~sd(.x, na.rm = TRUE)))) %>%
+  pivot_longer(cols = -c(alpha, peak_coeff),
+               names_to = "metric",
+               values_to = "value") %>%
+  separate(metric, c("outcome", "metric"), sep = "_")
+
+
+
 rm(list = setdiff(ls(), ls_snapshot))
 gc()
-
-
-
-
-
-# V2 ----------------------------------------------------------------------
-#
-# p_coverage <- summary_df %>%
-#   select(alpha, peak_coeff, coverage) %>%
-#   group_by(alpha, peak_coeff) %>%
-#   summarise(coverage = mean(coverage, na.rm = TRUE)) %>%
-#   mutate(target = 1 - as.numeric(as.character(alpha)),
-#          error = target - coverage) %>%
-#   ggplot(aes(
-#     x = peak_coeff,
-#     y = error,
-#     group = alpha,
-#     colour = alpha
-#   )) +
-#   geom_path(key_glyph = draw_key_rect,
-#             show.legend = TRUE) +
-#   geom_point(size = 2.2,
-#              show.legend = FALSE) +
-#   geom_hline(
-#     yintercept = 0,
-#     lty = 2,
-#     colour = "black",
-#     show.legend = FALSE
-#   ) +
-#   scale_color_manual(name = "Alpha",
-#                      values = alpha_pal) +
-#   guide_colour_bar() +
-#   theme_publication() +
-#   labs(x = "Peak coefficient",
-#        y = "Coverage Error" #expression(paste("Coverage Error ( y - ", widehat(y), " )"))
-#        )+
-#   theme(legend.key = element_rect(color = "black", size = 1))
-#

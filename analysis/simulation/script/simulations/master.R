@@ -59,7 +59,7 @@ process_time <- system.time({
     # Simulations
     simulations <- purrr::map(1:n_simulations, function(j) {
       sim <- simulate_groups(
-        duration = scenrio$duration,
+        duration = scenario$duration,
         n_groups = scenario$n_groups,
         size = scenario$size,
         name = scenario$name,
@@ -186,4 +186,4 @@ saveRDS(log, file = paste0(
 rm(list = ls())
 gc()
 
-#Move to visualisations...
+#Move to analysis/simulation/script/visualisations/master.R

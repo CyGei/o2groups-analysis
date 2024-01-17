@@ -4,14 +4,18 @@ library(tidymodels)
 #https://workshops.tidymodels.org/
 #https://learn.microsoft.com/en-us/training/paths/machine-learning-with-r/
 #https://www.coursera.org/learn/tidyverse-modelling-data
+source(here("analysis/simulation/script/visualisations/plot_helpers.R"))
 
-# Original Data
-outcomes_df <-
-  readRDS(here("analysis/simulation/data/model", "outcomes_df.rds"))
+# Summary Data
+summary_df <-
+  read_files(path = here("analysis/simulation/data", "summary")) %>%
+  bind_rows() %>%
+  mutate(across(c(peak_coeff, alpha), as.factor))
+
 
 # Data Prep
-data <- outcomes_df %>%
-  filter(peak_coeff == 1) %>%
+data <- summary_df %>%
+  filter(alpha == 0.05 & peak_coeff == 1) %>%
   drop_na(trials) %>%  # drops observations where groups doesn't generate transmissions
   mutate(
     rel_prec = abs(bias / delta) * 100,
@@ -50,7 +54,7 @@ data <- outcomes_df %>%
 
 
 outcomes <-
-  c("sensitivity", "specificity", "bias", "bias", "bias_type")
+  c("sensitivity", "specificity", "bias", "bias_type")
 
 predictors <-c(
     "delta",
@@ -117,19 +121,19 @@ bias_results <- compare_models(
 
 p_models <-
   bias_results %>%
+  filter(.metric == "rsq") %>%
   ggplot(aes(x = Formula, y = mean, color = Formula)) +
-  facet_wrap( ~ .metric, scales = "free_y") +
   geom_point() +
   geom_errorbar(aes(ymin = mean - std_err, ymax = mean + std_err)) +
   theme(axis.text.x = element_blank(),
         legend.position = "none")
 plotly::ggplotly(p_models)
-
-final_formula <- bias_results %>%
-  filter(.metric == "rsq") %>%
-  arrange(desc(mean)) %>%
-  slice(1) %>%
-  pull(Formula)
+#we don't want to use the No of transmissions as a predictor since it's difficult to obtain in real life
+# final_formula <- bias_results %>%
+#   filter(.metric == "rsq") %>%
+#   arrange(desc(mean)) %>%
+#   slice(1) %>%
+#   pull(Formula)
 final_formula <- bias ~ log(size_freq) * size_freq_cat + log(n_cases) * n_cases_cat
 
 last_fit <- workflow() %>%
@@ -169,8 +173,6 @@ last_fit %>%
 #################
 # Sensitivity
 #################
-
-
 sensitivity_formulas <- list(
   car::logit(sensitivity) ~ group_susceptibles,
   car::logit(sensitivity) ~ total_susceptibles,
@@ -218,8 +220,8 @@ sensitivity_results <- compare_models(
 )
 
 p_models <- sensitivity_results %>%
+  filter(.metric == "rsq") %>%
   ggplot(aes(x = Formula, y = mean, color = Formula)) +
-  facet_wrap( ~ .metric, scales = "free_y") +
   geom_point() +
   geom_errorbar(aes(ymin = mean - std_err, ymax = mean + std_err)) +
   theme(axis.text.x = element_blank(),

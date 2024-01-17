@@ -4,7 +4,13 @@ hexbin_plot <- function(
     epidemic_specific_predictors,#character vector
     predictor_name_labels = NULL, #named character vector
     alpha_value,
-    peak_coeff_value) {
+    peak_coeff_value,
+    scatter_size = 0.5,
+    meanpoint_size = 1,
+    linerange_size = 0.25,
+    linetrend_size = 0.4,
+    base_size = 12
+    ) {
   library(dplyr)
   library(ggplot2)
   library(ggtext)
@@ -22,12 +28,12 @@ hexbin_plot <- function(
       alpha = as.character(alpha),
       predictor_level = ifelse(
         predictor_name %in% group_specific_predictors,
-        "Group Specific",
-        "Epidemic Specific"
+        "Group specific",
+        "Epidemic specific"
       ),
       predictor_level = factor(
         predictor_level,
-        levels = c("Group Specific", "Epidemic Specific")
+        levels = c("Group specific", "Epidemic specific")
       ),
       predictor_name = factor(
         predictor_name,
@@ -84,8 +90,8 @@ hexbin_plot <- function(
   )
 
   predictor_level_labels <- c(
-    "Group Specific" = expression(bolditalic("Group Specific")),
-    "Epidemic Specific" = expression(bolditalic("Epidemic Specific"))
+    "Group specific" = expression(bolditalic("Group-specific")),
+    "Epidemic specific" = expression(bolditalic("Epidemic-specific"))
   )
 
 
@@ -134,10 +140,13 @@ hexbin_plot <- function(
       ),
       scales = "free"
     ) +
-    geom_hex(aes(fill = after_stat(ndensity),
-                 colour = after_stat(ndensity)),
-             linewidth = 0.1,
-             bins = 100) +
+    geom_point(
+      stroke = 0,
+      shape = 16,
+      alpha = 0.1,
+      size = scatter_size,
+      col = "black"
+    ) +
     geom_hline(
       data = hline_df %>%
         mutate(target = ifelse(
@@ -147,36 +156,32 @@ hexbin_plot <- function(
         )),
       aes(yintercept = target),
       colour = "#0041f3",
-      #"#03d075",
-      #"#F31DC0",
-      linewidth = 0.6,
-      linetype = "longdash"
+      linewidth = 0.35,
+      linetype = "f4"
     ) +
-    geom_pointrange(data = mean_df,
-                    aes(ymin = lower,
-                        ymax = upper),
-                    size = 0.1,
-                    col = "#f300bb") +
+    geom_linerange(
+      data = mean_df,
+      aes(ymin = lower,
+          ymax = upper),
+      col = "#f300bb",
+      linewidth = linerange_size
+    ) +
+    geom_point(
+      data = mean_df,
+      aes(y = outcome_value),
+      size = meanpoint_size,
+      col = "#f300bb"
+    ) +
     geom_line(data = mean_df,
-              linewidth = 0.5,
+              linewidth = linetrend_size,
               col = "#f300bb") +
-    scale_colour_gradientn("Density",
-                           colours = c("#000000", "#ed2012", "#fae73d"),
-                           breaks = seq(0,1,0.25),
-                           limits = c(0,1))+
-    scale_fill_gradientn("Density",
-                         colours = c("#000000", "#ed2012", "#fae73d"),
-                         breaks = seq(0,1,0.25),
-                         limits = c(0,1))+
-    #scico::scale_fill_scico("Log Count", palette = "lajolla") +
-    #scico::scale_colour_scico("Log Count", palette = "lajolla") +
     labs(
-      x = "Predictor Value",
-      y = "Metric Value",
+      x = "Predictor value",
+      y = "Metric value",
       linetype = "",
       color = ""
     ) +
-    theme_publication_hexbin(base_size = 12) +
+    theme_publication_hexbin(base_size = base_size) +
     theme(
       strip.text.x = element_text(size = rel(1.1)),
       strip.text.y = ggtext::element_markdown(size = rel(1.1)),
@@ -280,7 +285,7 @@ predictors <-
 labels<- c(
   "delta",
   "size",
-  "p[size]",
+  "f",
   "n[intro]",
   "p[intro]",
   "R[0]",
@@ -295,7 +300,7 @@ labels<- c(
   "sigma[n[cases]]",
   "sigma[p[sus]]",
   "sigma[size]",
-  "sigma[p[size]]",
+  "sigma[f]",
   "sigma[delta]",
   "sigma[R[0]]",
   "sigma[n[intro]]",
@@ -346,17 +351,22 @@ p_master <- hexbin_plot(
   epidemic_specific_predictors = epidemic_specific_predictors,
   predictor_name_labels = predictor_name_labels,
   alpha_value = "0.05",
-  peak_coeff_value = "1"
+  peak_coeff_value = "1",
+  scatter_size = 0.35,
+  meanpoint_size = 0.7,
+  linerange_size = 0.25,
+  linetrend_size = 0.25,
+  base_size = 8
 )
 
 
 ggsave(
   here("analysis/simulation/plots", "hexbin_all.png"),
   p_master,
-  width = 20,
-  height = 8,
+  width = 7.5,
+  height = 4.3,
   units = "in",
-  dpi = 300
+  dpi = 500
 )
 
 
@@ -388,7 +398,7 @@ predictors <-
 
 labels<- c(
   "delta",
-  "p[size]",
+  "f",
   "R[0]",
   "n[cases]",
   "n[groups]",
@@ -396,7 +406,7 @@ labels<- c(
   "sigma[n[cases]]",
   "sigma[p[sus]]",
   "sigma[size]",
-  "sigma[p[size]]",
+  "sigma[f]",
   "sigma[delta]",
   "sigma[R[0]]",
   "sigma[n[intro]]",
@@ -439,7 +449,12 @@ p_master_short <- hexbin_plot(
   epidemic_specific_predictors = epidemic_specific_predictors,
   predictor_name_labels = predictor_name_labels,
   alpha_value = "0.05",
-  peak_coeff_value = "1"
+  peak_coeff_value = "1",
+  scatter_size = 0.35/1.5,
+  meanpoint_size = 0.7/2,
+  linerange_size = 0.25/1.5,
+  linetrend_size = 0.25/1.5,
+  base_size = 8/1.5
 )
 
 
@@ -447,10 +462,10 @@ p_master_short <- hexbin_plot(
 ggsave(
   here("analysis/simulation/plots", "hexbin_all_short.png"),
   p_master_short,
-  width = 20,
-  height = 8,
+  width = 7.5,
+  height = 4.3,
   units = "in",
-  dpi = 300
+  dpi = 500
 )
 
 

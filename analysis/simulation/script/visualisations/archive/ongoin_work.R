@@ -48,69 +48,6 @@ summary_df %>%
        color = "Relative Size (f)")
 
 
-# make a grid of x and x' value do x -x' and plot that against the bias
-expand.grid(truth = seq(-1, 1, 0.1), est = seq(-1, 1, 0.1)) %>%
-  mutate(bias = truth - est) %>%
-  ggplot(aes(x = truth, y = est)) +
-  geom_tile(aes(fill = bias)) +
-  scale_fill_gradient2(low = "#C70071",
-                       high = "#00C756",
-                       guide = "colorbar") +
-  labs(x = expression(paste("True Delta (", delta, ")")),
-       y = expression(paste("Estimated Delta (", bar(delta), ")")),
-       fill = expression(paste("Bias (", delta, "-", bar(delta), ")"))) +
-  coord_fixed() +
-  theme_publication() +
-  guides(
-    fill = guide_colorbar(
-      barwidth = 10,
-      barheight = 1,
-      title.position = "top",
-      title.hjust = 0.5,
-      title.theme = element_text(size = 10, face = "bold"),
-      ticks = FALSE,
-      label.theme = element_text(size = 10)
-    )
-  ) +
-  theme(legend.key = element_rect(color = "black", fill = 'white'))
-ggsave(
-  here("analysis/simulation/plots", "bias_grid.png"),
-  width = 5,
-  height = 5,
-  dpi = 300
-)
-
-
-grid <- expand.grid(
-  x = seq(0, 100, by = 1),
-  n = seq(0, 100, by = 1),
-  f = seq(0.1, 1, by = 0.2)
-)
-grid <- grid[grid$n >= grid$x & grid$n > 0,]
-grid$est <- estimator(grid$x, grid$n, grid$f)
-grid
-
-grid %>%
-  filter(est >= 0) %>%
-  ggplot() +
-  facet_wrap(~ f) +
-  geom_point(aes(x = n, y = x, col = est))
-
-
-
-expand.grid(true = -0.5,
-            est = seq(-1, 1, by = 0.1)) %>%
-  mutate(bias = true - est) %>%
-  ggplot(aes(x = true, y = est)) +
-  geom_point(aes(col = bias), size = 10) +
-  scale_color_gradient2(midpoint = 0)
-
-
-
-summary_df %>%
-  filter(peak_coeff == "1" & alpha == "0.05" & delta >= 0.4) %>%
-  summarise(mean = mean(coverage, na.rm = TRUE),
-            sd = sd(coverage, na.rm = TRUE))
 
 
 summary_df %>%
@@ -134,9 +71,6 @@ summary_df %>%
        y = expression(paste("Bias (", delta, "-", bar(delta), ")"))) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_y_continuous(limits = c(-0.25, 0.25))
-
-
-
 
 
 
