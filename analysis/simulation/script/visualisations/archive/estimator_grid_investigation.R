@@ -1,8 +1,8 @@
 library(o2groups)
+library(here)
+library(tidyverse)
 source(here("analysis/simulation/script/visualisations/plot_helpers.R"))
 source(here("analysis/simulation/script/simulations/process_helpers.R"))
-
-
 
 
 # Scenarios ---------------------------------------------------------------
@@ -138,12 +138,14 @@ p_grid_simulations <- as_tibble(estimates) %>%
     colours = c("#008080", "white","#EEBC54"),
     #colours = c("#008000", "white", "#800080"),
     values = scales::rescale(c(-0.5, -0.15, 0, 0.15, 0.5)),
+    breaks = seq(-2,2, 1),
+    limits = c(-2,2),
     na.value = "gray"
   )+
   scale_x_continuous(breaks = seq(0, 1, by = 0.25))+
   labs(x =latex2exp::TeX("$f_{\\a}$"),
        y =latex2exp::TeX("$\\bar{\\pi_}_{\\a\\leftarrow a}$"),
-       fill = expression(paste("Bias (", delta, "-", bar(delta), ")")))+
+       fill = latex2exp::TeX("Bias ($\\delta_a - \\bar{\\delta}_a)"))+
   theme_publication()
 p_grid_simulations
 
@@ -164,6 +166,11 @@ scenario_df <- purrr::map(master_list, function(x) {
   return(x$scenario_df)
 }) %>%
   dplyr::bind_rows(.id = "scenario")
+scenario_names <- sort(unique(scenario_df$scenario))
+
+scenario_df %>%
+  filter(scenario %in% scenario_names[c(7, 14, 17, 18)])
+
 
 summary <- estimates %>%
   group_by(name, scenario) %>%
@@ -191,6 +198,7 @@ summary <- estimates %>%
   ) %>%
   ungroup()
 
+
 summary %>%
   ggplot(aes(x = delta, y = sensitivity, fill = size_freq)) +
   facet_wrap( ~ scenario)+
@@ -205,9 +213,6 @@ summary %>%
   )
 
 
-
-scenario_names <- sort(unique(scenario_df$scenario))
-
 summary %>%
   filter(scenario %in% scenario_names[c(7, 14, 17, 18)]) %>%
   ggplot(aes(x = delta, y = sensitivity)) +
@@ -220,19 +225,44 @@ summary %>%
   scale_size_continuous(breaks = c(0.25, 0.5, 0.75)) +
   labs(title = "Scenario Configurations (2 groups)")
 
-estimates %>%
+summary %>%
   filter(scenario %in% scenario_names[c(7,14,17,18)]) %>%
+  ggplot(aes(x = delta, y = group_susceptibles))+
+  facet_wrap( ~ scenario)+
+  geom_point(aes(color = name,
+                 size = size_freq)) +
+  geom_text(aes(label = name),
+            color = "black") +
+  scale_size_continuous(breaks = c(0.25, 0.5, 0.75)) +
+  labs(y = "Prop. Susceptible")
+
+
+estimates %>%
+  filter(scenario %in% scenario_names[c(7, 14, 17, 18)]) %>%
+  group_by(name, scenario) %>%
+  # mutate(trials_cat = santoku::chop_width(trials, width = 4,
+  #                                         labels = santoku::lbl_midpoints())) %>%
+  summarise(
+    trials = mean(trials, na.rm = TRUE),
+    est = mean(est, na.rm = TRUE),
+    lower_ci = mean(lower_ci, na.rm = TRUE),
+    upper_ci = mean(upper_ci, na.rm = TRUE),
+    delta = mean(delta, na.rm = TRUE)
+  ) %>%
   ggplot(aes(x = trials,
              y = est,
              group = name,
              color = name)) +
-  facet_wrap( ~ scenario)+
+  facet_wrap( ~ scenario, scales = "free_x")+
   geom_pointrange(aes(ymin = lower_ci,
-                      ymax = upper_ci)) +
+                      ymax = upper_ci),
+                  position = position_dodge(width = 0.5))+
   geom_hline(aes(yintercept = delta,
-                 color = name))+
-  geom_hline(aes(yintercept = 0), linetype = "dashed")
-
+                 color = name,
+                 linetype = name))+
+  geom_hline(aes(yintercept = 0), linetype = "dashed")+
+  labs(x = latex2exp::TeX("$\\tau_{.\\leftarrow a}$"),
+       title = latex2exp::TeX("Avegrage estimates of $\\delta_a$ & 95CI by Group (100 simulations)"))
 
 estimates %>%
   filter(scenario %in% scenario_names[c(7,14,17,18)]) %>%
@@ -264,91 +294,7 @@ estimates %>%
   labs(x = latex2exp::TeX("$\\tau_{a\\leftarrow a}$"))+
   ggtitle("No of within group transmission pairs by Group (over 100 simulations)")
 
-# CI grid -----------------------------------------------------------------
 
 
-# Specify x/n values
-target_values <- c(0, 0.25, 0.5, 0.75, 1)
-# Initialize an empty data frame to store results
-pi_df <- data.frame()
-
-# Loop through possible combinations to find x and n values
-for (x_over_n in target_values) {
-  for (n in seq(10, 100, by = 10)) {
-    x <- round(x_over_n * n)
-
-    # Ensure that x is a valid value (between 0 and n)
-    if (x >= 0 && x <= n) {
-      result <- data.frame(x, n, b_est(x, n))
-      pi_df <- rbind(pi_df, result)
-    }
-  }
-}
-
-# Plot Pi results
-ggplot(pi_df,
-       aes(x = n,
-           y = est,
-           color = x)) +
-  geom_hline(yintercept = target_values,
-             linetype = "dashed",
-             color = "grey") +
-  geom_pointrange(aes(ymin = lower_ci,
-                      ymax = upper_ci),
-                  position =  position_dodge2(width = 5)) +
-  scale_color_gradientn(
-    colours = c("black", "#FF00FF"),
-    values = scales::rescale(c(-0.5, -0.15, 0, 0.15, 0.5)),
-    na.value = "gray"
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, by = 10)) +
-  theme_publication()
-
-
-
-delta_df <- mutate(.data = pi_df,
-                   across(
-                     .cols = c("est", "lower_ci", "upper_ci"),
-                     .fns = function(x) {
-                       gamma <- o2groups::get_gamma(beta = x, f = 0.5)
-                       delta <- o2groups::scale(gamma)
-                       return(delta)
-                     }
-                   ))
-# %>%
-#   rename_with(
-#     .fn = \(x) paste0("delta_", x),
-#     .cols =  c("est", "lower_ci", "upper_ci")
-#   )
-
-b_est(0, 10) %>%
-  o2groups::get_gamma(beta = ., f = 0.5) %>%
-  o2groups::scale()
-
-# Plot results
-ggplot(delta_df,
-       aes(x = n,
-           y = est,
-           color = x)) +
-  geom_pointrange(aes(ymin = lower_ci,
-                      ymax = upper_ci),
-                  position =  position_dodge2(width = 5)) +
-  geom_hline(yintercept = 0,
-             linetype = "solid",
-             color = "red") +
-  scale_color_gradientn(
-    colours = c("black", "#FF00FF"),
-    values = scales::rescale(c(-0.5, -0.15, 0, 0.15, 0.5)),
-    na.value = "gray"
-  ) +
-  scale_x_continuous(breaks = seq(0, 100, by = 10)) +
-  theme_publication()+
-  labs(
-    y = latex2exp::TeX("$\\bar{\\delta}_a$"),
-    x = latex2exp::TeX("$\\tau_{.\\leftarrow a}$"),
-    color = latex2exp::TeX("$\\tau_{a\\leftarrow a}$"),
-    title =  latex2exp::TeX("Estimates of $\\bar{\\delta}_a$ by $\\tau_{.\\leftarrow a}$ & $\\tau_{a\\leftarrow a}$")
-  )
-
-
-
+summary %>%
+  filter(scenario %in% scenario_names[c(18)]) %>% View()

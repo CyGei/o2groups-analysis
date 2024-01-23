@@ -95,13 +95,18 @@ source(here("analysis/simulation/script/visualisations", "3_violin_ROC.R"))
 ##################################
 source(here("analysis/simulation/script/visualisations", "4_hexbin.R"))
 
-#Bias
+##################################
+# Summary Stats
+##################################
+#By No. of cases
 summary_df %>%
   filter(alpha == 0.05 & peak_coeff == 1) %>%
   mutate(n_cases_chop =  santoku::chop_evenly(n_cases, intervals = 20)) %>%
   group_by(n_cases_chop) %>%
   summarise(across(all_of(metrics), list(mean = ~mean(.x, na.rm = TRUE),
                                          sd = ~sd(.x, na.rm = TRUE))))
+
+#By relative size
 summary_df %>%
   filter(alpha == 0.05 & peak_coeff == 1) %>%
   mutate(size_freq_chop =  santoku::chop_evenly(size_freq, intervals = 20)) %>%
@@ -109,6 +114,17 @@ summary_df %>%
   summarise(across(all_of(metrics), list(mean = ~mean(.x, na.rm = TRUE),
                                          sd = ~sd(.x, na.rm = TRUE))))
 
+
+summary_df %>%
+  filter(alpha == 0.05 & peak_coeff == 1 & delta >= 0.5) %>%
+  summarise(across(sensitivity, list(mean = ~mean(.x, na.rm = TRUE),
+                              sd = ~sd(.x, na.rm = TRUE))))
+
+summary_df %>%
+  filter(delta <= -0.5 | delta >= 0.5) %>%
+  filter(alpha == 0.1 & peak_coeff == 0.7 & n_cases >= 15 & size_freq >=0.1) %>%
+  summarise(across(sensitivity, list(mean = ~mean(.x, na.rm = TRUE),
+                                     sd = ~sd(.x, na.rm = TRUE))))
 
 source(here("analysis/simulation/script/visualisations", "5_hexbin_all.R"))
 

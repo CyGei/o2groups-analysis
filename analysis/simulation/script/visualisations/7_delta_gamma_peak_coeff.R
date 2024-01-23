@@ -3,7 +3,7 @@ p_gamma_delta <- tibble(delta = seq(-1, 0.965, 0.001),
   mutate(effect = case_when(
     delta < 0 ~ "disassortative",
     delta > 0 ~ "assortative",
-    delta == 0 ~ "neutral"
+    delta == 0 ~ "homogeneous"
   )) %>%
   ggplot(aes(x = gamma, y = delta)) +
   geom_path(aes(color = effect),
@@ -35,12 +35,12 @@ p_gamma_delta <- tibble(delta = seq(-1, 0.965, 0.001),
   color = "#c5774a",
   arrow = arrow(length = unit(0.4, "cm"))) +
   scale_color_manual(
-    "Pattern",
-    breaks=c("disassortative", "neutral", "assortative"),
+    "Transmission pattern",
+    breaks=c("disassortative", "homogeneous", "assortative"),
     values = c(
     "disassortative" = "#4A98C5",
     "assortative" = "#c5774a",
-    "neutral" = "darkgrey"
+    "homogeneous" = "darkgrey"
   )) +
   scale_x_continuous(
     limits = c(0, 50),
