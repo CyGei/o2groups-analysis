@@ -74,7 +74,7 @@ p_bias <- summary_df %>%
              lty = 2) +
   scale_y_continuous(limits = c(-2, 2), breaks = seq(-2, 2, 0.5)) +
   theme_publication() +
-  labs(x = "Peak window", y = "Bias")
+  labs(x = "Peak coefficient", y = "Bias")
 
 
 # Coverage ----------------------------------------------------------------
@@ -109,11 +109,11 @@ p_coverage <- summary_df %>%
     show.legend = FALSE
   ) +
   scale_y_continuous(limits = c(0.5, 1), breaks = seq(0, 1, 0.1)) +
-  scale_color_manual(name = "**&alpha;**",
+  scale_color_manual(name = "Significance level",
                      values = alpha_pal) +
   guide_colour_bar() +
   theme_publication() +
-  labs(x = "Peak window", y = "Coverage",) +
+  labs(x = "Peak coefficient", y = "Coverage",) +
   theme(legend.key = element_rect(color = "black", size = 1),
         legend.title = ggtext::element_markdown(size = 12))
 
@@ -163,9 +163,9 @@ p_roc <- summary_df %>%
   coord_fixed(clip = "off") +
   scale_colour_manual(name = "Alpha",
                       values = alpha_pal) +
-  scale_fill_manual(name = "Peak window",
+  scale_fill_manual(name = "Peak coefficient",
                     values = peak_coeff_pal) +
-  scale_size_discrete(name = "Peak window",
+  scale_size_discrete(name = "Peak coefficient",
                       range = c(3, 5),
                       guide = "none") +
   guide_colour_bar(key_color = "white") +
@@ -219,6 +219,6 @@ perf <- summary_df %>%
   separate(metric, c("outcome", "metric"), sep = "_")
 
 
-
+cat("patch1.png \n")
 rm(list = setdiff(ls(), ls_snapshot))
 gc()

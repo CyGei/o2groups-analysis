@@ -294,7 +294,7 @@ p1 <- p_list[[1]] + theme(
   strip.background.y = element_blank(),
   legend.position = "bottom"
 ) +
-  ggtitle(lab = latex2exp::TeX(r"(\alpha = 0.1, Peak window = 1.5)"))
+  ggtitle(lab = latex2exp::TeX(r"(\alpha = 0.1, Peak coefficient = 1.5)"))
 
 p2 <- p_list[[2]] + theme(
   axis.text.y = element_blank(),
@@ -302,7 +302,7 @@ p2 <- p_list[[2]] + theme(
   axis.ticks.y = element_blank(),
   axis.title.y = element_blank(),
   legend.position = "bottom",
-) + ggtitle(lab = latex2exp::TeX(r"(\alpha = 0.25, Peak window = 2)"))
+) + ggtitle(lab = latex2exp::TeX(r"(\alpha = 0.25, Peak coefficient = 2)"))
 
 
 p_patch <-
@@ -332,6 +332,6 @@ ggsave(
   dpi = 500
 )
 
-
+cat("hexbin.png \n hexbin_patch.png \n")
 rm(list = setdiff(ls(), ls_snapshot))
 gc()

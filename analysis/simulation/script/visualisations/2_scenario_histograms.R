@@ -227,7 +227,7 @@ ggsave(
   dpi = 300
 )
 
-
+cat("scenario_hist.png \n")
 
 rm(list = setdiff(ls(), ls_snapshot))
 gc()

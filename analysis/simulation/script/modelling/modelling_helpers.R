@@ -175,5 +175,17 @@ cross_validate <- function(formulas, data, k = 10, seed = NULL, method = "lm") {
   return(results)
 }
 
+#Long, J. S. (1997).
+#Regression models for categorical and limited dependent variables.
+# K = the number of additional parameters relative to the null model
+r2_mcfadden <- function(model, adjusted = FALSE) {
+  if (adjusted) {
+    K <- length(model$coefficients) - 1 # -1 for intercept
+  } else {
+    K <- 0
+  }
+  r2 <- 1 - ((model$deviance - K) / model$null.deviance)
+  return(r2)
+}
 
 

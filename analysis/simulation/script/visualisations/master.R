@@ -105,6 +105,19 @@ summary_df %>%
   group_by(n_cases_chop) %>%
   summarise(across(all_of(metrics), list(mean = ~mean(.x, na.rm = TRUE),
                                          sd = ~sd(.x, na.rm = TRUE))))
+#bias
+summary_df %>%
+  filter(alpha == 0.05 & peak_coeff == 1) %>%
+  mutate(n_cases_chop =  santoku::chop(n_cases, breaks = seq(0,100, 10) )) %>%
+  group_by(n_cases_chop) %>%
+  summarise(across(bias, list(mean = ~mean(.x, na.rm = TRUE),
+                              sd = ~sd(.x, na.rm = TRUE)))) %>%
+  ggplot(aes(x = n_cases_chop, y = bias_mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = bias_mean - bias_sd, ymax = bias_mean + bias_sd)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(x = "Number of cases", y = "Bias") +
+  theme_bw()
 
 #By relative size
 summary_df %>%
@@ -113,6 +126,17 @@ summary_df %>%
   group_by(size_freq_chop) %>%
   summarise(across(all_of(metrics), list(mean = ~mean(.x, na.rm = TRUE),
                                          sd = ~sd(.x, na.rm = TRUE))))
+summary_df %>%
+  filter(alpha == 0.05 & peak_coeff == 1) %>%
+  mutate(size_freq_chop =  santoku::chop(size_freq, breaks = seq(0,1,0.1) )) %>%
+  group_by(size_freq_chop) %>%
+  summarise(across(bias, list(mean = ~mean(.x, na.rm = TRUE),
+                              sd = ~sd(.x, na.rm = TRUE)))) %>%
+  ggplot(aes(x = size_freq_chop, y = bias_mean)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = bias_mean - bias_sd, ymax = bias_mean + bias_sd)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_bw()
 
 
 summary_df %>%

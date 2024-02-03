@@ -80,7 +80,7 @@ ggsave(
 )
 
 
-# Peak Window -------------------------------------------------------------
+# Peak coefficient -------------------------------------------------------------
 
 alpha <- 1
 set.seed(123)
@@ -91,7 +91,7 @@ p_peak_coeff <- data.frame(values = rnorm(20000, mean = 10, sd = 2.9)) %>%
                  alpha = alpha,
                  color = "white") +
   scale_fill_gradientn(
-    "Peak window",
+    "Peak coefficient",
     colours = c(
       alpha("#3679c0", alpha),
       alpha("black", alpha),

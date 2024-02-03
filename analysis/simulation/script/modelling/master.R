@@ -20,18 +20,16 @@ data <- summary_df %>%
       delta == 0 ~ "neutral",
       delta > 0 ~ "assortative",
       delta < 0 ~ "disassortative",
-      TRUE ~ "NA"
+      TRUE ~ NA
     ),
     abs_delta = abs(delta),
     n_trans = trials,
     n_cases_cat30 = ifelse(n_cases >= 30, ">=30", "<30"),
     n_cases_cat15 = ifelse(n_cases >= 15, ">=15", "<15"),
     size_freq_cat10 = ifelse(size_freq >= 0.10, ">=0.10", "<0.10"),
-    size_freq_cat05 = ifelse(size_freq >= 0.05, ">=0.05", "<0.05"),
-    size_freq_cat = case_when(
-      size_freq <= 0.3 ~ "small",
-      size_freq > 0.3 & size_freq < 0.7 ~ "medium",
-      size_freq >= 0.7 ~ "large",
+    size_freq_binary = case_when(
+      size_freq <= 0.1 | size_freq >= 0.9 ~ "small or large",
+      size_freq > 0.1 & size_freq < 0.9 ~ "medium"
     )
   ) %>%
   ungroup() %>%
@@ -60,20 +58,20 @@ formulas <- list(
   bias ~ size_freq,
   bias ~ size,
   bias ~ log(size_freq) * size_freq_cat10 + log(n_cases) * n_trans,
-  bias ~ log(size_freq) * size_freq_cat10 + log(n_cases) * n_cases_cat30,
-  bias ~ log(size_freq) * size_freq_cat10 + log(n_cases) * n_cases_cat15
+  bias ~ log(size_freq) + size_freq_binary + log(n_cases) + n_cases_cat30,
+  bias ~ log(size_freq) * size_freq_binary + log(n_cases) * n_cases_cat30,
+  bias ~ log(size_freq) * size_freq_cat10 + log(n_cases) * n_cases_cat30
 )
 results <- cross_validate(formulas, data, k = 10, seed = 123)
-as_tibble(results)
 # Model Selection
 results %>%
-  ggplot(aes(x = as.character(formula_index), y = r2)) +
+  ggplot(aes(x = as.factor(formula_index), y = r2)) +
   geom_boxplot() +
   theme_minimal()
 
 # Fit the model
-model <- lm(formulas[[7]], data = data)
-model %>% summary() %>% sjPlot::tab_model()
+model <- lm(formulas[[8]], data = data)
+model %>% summary() %>% sjPlot::tab_model(., CSS =  sjPlot::css_theme("cells"))
 
 
 # Sensitivity -------------------------------------------------------------
@@ -92,11 +90,8 @@ formulas <- list(
   sensitivity ~ delta_type + abs_delta,
   sensitivity ~ delta_type * abs_delta,
   sensitivity ~ delta_type * abs_delta + n_cases,
-  sensitivity ~ delta_type * abs_delta + n_cases_cat15,
-  sensitivity ~ delta_type * abs_delta + size_freq_cat05,
   sensitivity ~ delta_type * abs_delta + size_freq_cat10,
-  sensitivity ~ delta_type * abs_delta + n_cases + size_freq_cat10,
-  sensitivity ~ delta_type * abs_delta + n_cases + size_freq
+  sensitivity ~ delta_type * abs_delta + n_cases + size_freq_cat10
 )
 results <-
   cross_validate(
@@ -106,25 +101,29 @@ results <-
     k = 10,
     seed = 123
   )
-as_tibble(results)
 results %>%
-  ggplot(aes(x = factor(formula_index, level = 1:length(formulas)), y = metric.accuracy)) +
+  ggplot(aes(x = as.factor(formula_index), y = metric.McFaddenR2)) +
   geom_boxplot() +
   theme_minimal()
 
-results %>%
-  filter(formula_index == 7) %>%
-  summarise(
-    across(starts_with("metric"), mean)
-  )
-formulas[[7]]
-
 # Fit the model
 model <-
-  glm(formulas[[7]],
+  glm(formulas[[9]],
       data = data_sensitivity,
       family = binomial(link = "logit"),
       weights = weights)
+
+# For appendix
+model <- glm(
+  formulas[[6]],
+  data = data_sensitivity,
+  family = binomial(link = "logit"),
+  weights = weights
+)
+sjPlot::tab_model(model, CSS =  sjPlot::css_theme("cells"))
+glmtoolbox::adjR2(model)
+r2_mcfadden(model, adjusted = TRUE) %>% round(3)
+r2_mcfadden(model, adjusted = FALSE) %>% round(3)
 
 #predicted vs observed
 data_preds <- data_sensitivity %>%
@@ -135,6 +134,15 @@ data_preds <- data_sensitivity %>%
   mutate(actual = as.factor(actual)) %>%
   select(predictions, actual)
 
+
+data_sensitivity %>%
+  mutate(predictions = predict(model, type = "response")) %>%
+  mutate(actual = sensitivity) %>%
+  ggplot(aes(x = predictions, y = actual)) +
+  geom_point() +
+  geom_abline(slope = 1,
+              intercept = 0,
+              col = "red")
 # Metrics
 cm <- caret::confusionMatrix(data_preds$predictions, data_preds$actual,
                              mode = "everything", positive="1")
@@ -152,11 +160,10 @@ formulas <- list(
   specificity ~ n_cases,
   specificity ~ size_freq,
   specificity ~ sd_peak_date,
-  specificity ~ group_susceptibles,
-  specificity ~ total_susceptibles,
   specificity ~ sd_group_susceptibles,
-  specificity ~ n_cases + size_freq,
-  specificity ~ n_cases * size_freq
+  specificity ~ sd_peak_date + total_susceptibles,
+  specificity ~ sd_peak_date * total_susceptibles
+
 )
 
 results <-
@@ -172,13 +179,6 @@ results %>%
   ggplot(aes(x = factor(formula_index, level = 1:length(formulas)), y = metric.McFaddenR2)) +
   geom_boxplot() +
   theme_minimal()
-
-results %>%
-  filter(formula_index == 4) %>%
-  summarise(
-    across(starts_with("metric"), mean)
-  )
-
 
 model <- glm(formulas[[4]],
     data = data_specificity,
@@ -198,9 +198,10 @@ data_preds <- data_specificity %>%
 cm <- caret::confusionMatrix(data_preds$predictions, data_preds$actual,
                              mode = "everything", positive="1")
 
-model %>% sjPlot::tab_model()
+sjPlot::tab_model(model, CSS =  sjPlot::css_theme("cells"))
 glmtoolbox::adjR2(model)
-
+r2_mcfadden(model, adjusted = TRUE) %>% round(3)
+r2_mcfadden(model, adjusted = FALSE) %>% round(3)
 # Coverage ----------------------------------------------------------------
 
 data_coverage <- data %>%
@@ -243,4 +244,7 @@ model <- glm(formulas[[4]],
     data = data_coverage,
     family = binomial(link = "logit"),
     weights = weights)
-model %>% sjPlot::tab_model()
+sjPlot::tab_model(model, CSS =  sjPlot::css_theme("cells"))
+glmtoolbox::adjR2(model)
+r2_mcfadden(model, adjusted = TRUE) %>% round(3)
+r2_mcfadden(model, adjusted = FALSE) %>% round(3)
