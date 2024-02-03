@@ -1,7 +1,5 @@
-# Project Name
 
 **Sorting out assortativity: when can we assess the contributions of different population groups to epidemic transmission?**
-
 
 ## Structure
 
@@ -28,7 +26,8 @@
 
 ```
 ## Order of execution
-The code was tested on R version 4.1.3 (2022-03-10).
+The code was tested on R version 4.1.3 (2022-03-10). \
+*Requires the [o2groups](https://github.com/CyGei/o2groups) R package.*
 
 1. Source `master.R` in `simulations`, it will store the results in a new `data` folder.
 2. Source `master.R` in `visualisations`, it will store the figures in a new `plots` folder.
