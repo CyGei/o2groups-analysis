@@ -9,7 +9,7 @@ library(latex2exp)
 # Check that epidemics reached herd immunity
 ##################################
 # source(here("analysis/simulation/script/visualisations","1_AR_last_date.R"))
-
+dir.create(here("analysis/simulation/plots"))
 
 # Helpers -----------------------------------------------------------------
 source(here("analysis/simulation/script/visualisations/plot_helpers.R"))
