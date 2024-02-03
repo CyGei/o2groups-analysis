@@ -2,15 +2,6 @@
 
 **Sorting out assortativity: when can we assess the contributions of different population groups to epidemic transmission?**
 
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Structure](#structure)
-- [License](#license)
-
-## Introduction
-
-This repository contains the code and data necessary to reproduce the results and figures in the paper.
 
 ## Structure
 
