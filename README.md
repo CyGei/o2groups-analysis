@@ -27,7 +27,10 @@
 ```
 ## Order of execution
 The code was tested on R version 4.1.3 (2022-03-10). \
-*Requires the [o2groups](https://github.com/CyGei/o2groups) R package.*
+*Requires the [o2groups](https://github.com/CyGei/o2groups) R package.*\
+The analysis was conducted using the pre-release version of the `o2groups` package (v0.0.0.9000), which is available on [github](https://github.com/CyGei/o2groups/releases/tag/0.0.0.9000) and zenodo.\
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10616156.svg)](https://doi.org/10.5281/zenodo.10616156)
+
 
 1. Source `master.R` in `simulations`, it will store the results in a new `data` folder.
 2. Source `master.R` in `visualisations`, it will store the figures in a new `plots` folder.
