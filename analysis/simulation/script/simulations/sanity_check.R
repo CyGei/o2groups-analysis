@@ -4,71 +4,80 @@
 
 pacman::p_load_gh("CyGei/o2groups") # for simulation
 pacman::p_load_gh("CyGei/linktree@realtime") # for analysis
-pacman::p_load(dplyr)
+pacman::p_load(dplyr, furrr, ggplot2)
 
-
-# Test1 -------------------------------------------------------------------
-# 2 group simulation
-set.seed(123)
-duration = 100
-group_n = 2
-size = c(300, 300)
-name = c("HCW", "patient")
-gamma = c(1, 1)
-intro_n = c(1, 1)
-r0 = c(2, 2)
-generation_time = c(0, 0.1, 0.2, 0.4, 0.2, 0.1, 0)
-incubation_period = sample(1:14, sum(size), replace = TRUE)
+plan(multisession, workers = availableCores() - 2)
 
 set.seed(123)
-sim <- simulate_groups(
-  duration = duration,
-  group_n = group_n,
-  size = size,
-  name = name,
-  gamma = gamma,
-  intro_n = intro_n,
-  r0 = r0,
-  generation_time = generation_time,
-  incubation_period = incubation_period
+group_n = 5
+size = rep(100, group_n)
+name = LETTERS[1:group_n]
+gamma = rep(1, group_n)
+intro_n = rep(1, group_n)
+r0 = rep(2, group_n)
+
+ref <- tibble(group = name, ref = size / sum(size))
+
+sims <- future_map(
+  1:100,
+  ~ simulate_groups(
+    duration = duration,
+    group_n = group_n,
+    size = size,
+    name = name,
+    gamma = gamma,
+    intro_n = intro_n,
+    r0 = r0,
+    generation_time = generation_time,
+    incubation_period = incubation_period
+  ),
+  .options = furrr_options(seed = TRUE)
 )
-head(sim)
-#% of within group transmission
-linktree::get_pi(from = sim$source_group, to = sim$group) %>%
-  mutate(across(where(is.numeric),\(x) round(x, 2)))
-size / sum(size) %>% round(2)
 
+ttabs <- future_map(sims, \(x) {
+  ttab <- linktree:::ttable(from = x$source_group,
+                    to = x$group,
+                    level = name)
+  as_tibble(prop.table(ttab, 1))
+}) %>%
+  bind_rows(.id = "sim")
 
-
-# Test 2 ------------------------------------------------------------------
-# 3 group simulation
-set.seed(123)
-group_n = 3
-size = c(300, 300, 300)
-name = c("HCW", "patient", "other")
-gamma = c(1, 1, 1)
-intro_n = c(1, 1, 1)
-r0 = c(2, 2, 2)
-
-sim <- simulate_groups(
-  duration = duration,
-  group_n = group_n,
-  size = size,
-  name = name,
-  gamma = gamma,
-  intro_n = intro_n,
-  r0 = r0,
-  generation_time = generation_time,
-  incubation_period = incubation_period
-)
-head(sim)
-
-# % of within group transmission
-linktree::get_pi(from = sim$source_group, to = sim$group) %>%
-  mutate(across(where(is.numeric),\(x) round(x, 2)))
-size / sum(size) %>% round(2)
-
-# % of between group transmission
-ttab <- linktree:::ttable(from = sim$source_group, to = sim$group, level = name)
-prop.table(ttab, 1)
-prop.table(ttab, 1)[!diag(1, nrow(ttab))] %>% round(2) %>% mean()
+ttabs %>%
+  ggplot(aes(y = n, x = 1)) +
+  ggh4x::facet_nested(
+    rows = vars("From", from),
+    cols = vars("To", to),
+    switch = "y"
+  )+
+  geom_violin(
+    col = NA,
+    fill = "#88807B",
+    scale = "width",
+    adjust = 0.9,
+    alpha = 0.7
+  )+
+  #95% quantile and median
+  stat_summary(
+    fun.data = function(x) {
+      y <- quantile(x, c(0.025, 0.5, 0.975))
+      names(y) <- c("ymin", "y", "ymax")
+      y
+    },
+    geom = "pointrange",
+    fatten = 0.7,
+    size = 0.5,
+  )+
+  geom_hline(
+    data = ttabs %>%
+      filter(from == to) %>%
+      mutate(yintercept = unique(ref$ref)),
+    aes(yintercept = yintercept),
+    color = "steelblue"
+    )+
+  scale_y_continuous(position = "right")+
+  theme_bw()+
+  labs(y = expression(pi),
+       x = "")+
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "none")
