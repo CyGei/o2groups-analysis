@@ -81,3 +81,37 @@ ttabs %>%
   theme(axis.text.x = element_blank(),
         axis.ticks.x = element_blank(),
         legend.position = "none")
+
+
+
+
+# Heatmap of pi and f -----------------------------------------------------
+
+grid <- expand.grid(pi = seq(0, 1, 0.001),
+                    f = seq(0, 1, 0.001)) %>%
+  mutate(gamma = linktree:::gamma_formula(pi, f),
+         delta = linktree::gamma2delta(gamma))
+
+
+# heatmap ggplot2
+grid %>%
+  ggplot(aes(x = pi, y = f, fill = delta))+
+  geom_tile()+
+  scale_fill_gradientn(colors = c("purple", "white", "orange"),
+                       limits = c(-1, 1),
+                       breaks = c(-1, 0, 1),
+                       guide = guide_colorbar(frame.colour = "black",
+                                              frame.linewidth = 0.5))+
+  labs(x = expression(pi[a %<-% a]), y = bquote(f[a]), fill = bquote(delta[a])) +
+  theme_bw()+
+  scale_x_continuous(expand = c(0, 0)) +  # Add this line
+  scale_y_continuous(expand = c(0, 0))  +
+  theme(aspect.ratio = 1,
+        legend.position = "bottom",
+        legend.key.width = unit(1, "cm"),
+        plot.margin = margin(10, 0, 0, 0))
+
+
+ # The first plot shows the proportion of within and between group transmission for each simulation. The second plot shows the relationship between the proportion of within group transmission (\(\pi\)), the proportion of between group transmission (\(f\)), and the relative transmissibility of the virus within and between groups (\(\delta\)).
+ # The proportion of within and between group transmission is simulated as expected. The proportion of within group transmission is higher than the proportion of between group transmission. The relationship between \(\pi\), \(f\), and \(\delta\) is also as expected.
+ # The next step is to simulate the outbreak and analyze the data.
